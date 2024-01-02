@@ -51,6 +51,32 @@ kubectl exec -it eks-sample-linux-deployment-5b568bf897-cv5zx -n eks-lstack1-ns 
 curl eks-sample-linux-service
 ```
 
+## Update helm config with LocalStack pro
+You can use this chart with LocalStack Pro by:
+- Changing the image to localstack/localstack-pro.
+- Providing your Auth Token as an environment variable.
+You can set these values in a YAML file (in this example pro-values.yaml):
+```yaml
+image:
+  repository: localstack/localstack-pro
+
+extraEnvVars:
+  - name: LOCALSTACK_AUTH_TOKEN
+    value: "<your auth token>"
+```
+
+### Deploy LocalStack
+And you can use these values when installing the chart in your cluster:
+```shell
+helm repo add localstack-charts https://localstack.github.io/helm-charts
+helm install localstack localstack-charts/localstack -f pro-values.yaml --namespace eks-lstack1-ns
+```
+
+### Uninstall LocalStack
+```shell
+helm uninstall localstack --namespace eks-lstack1-ns
+```
+
 ## Delete the namespace
 ```shell
 kubectl delete namespace eks-lstack1-ns
