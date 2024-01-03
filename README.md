@@ -1,7 +1,15 @@
 # localstack-on-eks
 DevOps blueprint to run LocalStack on EKS in AWS
 
+# Setup
+Install 
+- helm
+- kubectl
+- eksctl
+
 # Steps
+## Get credentials to your AWS account
+
 ## Create EKS Cluster 
 ```shell
 eksctl create cluster --name lseksctlCluster --region us-west-2 --fargate
