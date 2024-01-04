@@ -67,10 +67,34 @@ You can set these values in a YAML file (in this example pro-values.yaml):
 ```yaml
 image:
   repository: localstack/localstack-pro
+  tag: "latest"
+
+nameOverride: "localstack"
+fullnameOverride: "localstack"
 
 extraEnvVars:
   - name: LOCALSTACK_AUTH_TOKEN
-    value: "<your auth token>"
+    value: "<your LocalStack auth token>"
+
+# enable debugging
+debug: true
+
+# This is not possible on Fargate as it requires privileged access
+#mountDind:
+#  enabled: true
+#  forceTLS: true
+
+lambda:
+  # The lambda runtime executor.
+  # Depending on the value, LocalStack will execute lambdas either in docker containers or in kubernetes pods
+  # The value "kubernetes" depends on the service account and pod role being activated
+  executor: "kubernetes"
+  environment_timeout: 400
+
+  security_context:
+    runAsUser: 1000
+    fsGroup: 1000
+    label3: value3
 ```
 
 ### Deploy LocalStack
@@ -79,6 +103,14 @@ And you can use these values when installing the chart in your cluster:
 helm repo add localstack-charts https://localstack.github.io/helm-charts
 helm install localstack localstack-charts/localstack -f pro-values.yaml --namespace eks-lstack1-ns
 ```
+
+### Get LocalStack container log
+Example
+kubectl logs <podname> -n eks-lstack1-ns
+```shell
+kubectl logs localstack-854d8fdc8-q6lr2 -n eks-lstack1-ns
+```
+
 
 ### Uninstall LocalStack
 ```shell
