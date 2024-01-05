@@ -12,7 +12,7 @@ Install
 
 ## Create EKS Cluster 
 ```shell
-eksctl create cluster --name lseksctlCluster --region us-west-2 --fargate
+eksctl create cluster --name lseksctlCluster --region us-west-2 --version 1.28 --fargate
 ```
 
 ## Create a K8S namespace
@@ -79,11 +79,6 @@ extraEnvVars:
 # enable debugging
 debug: true
 
-# This is not possible on Fargate as it requires privileged access
-#mountDind:
-#  enabled: true
-#  forceTLS: true
-
 lambda:
   # The lambda runtime executor.
   # Depending on the value, LocalStack will execute lambdas either in docker containers or in kubernetes pods
@@ -94,14 +89,24 @@ lambda:
   security_context:
     runAsUser: 1000
     fsGroup: 1000
-    label3: value3
+
+resources:
+  requests:
+    cpu: 1000m
+    memory: 4Gi
+
+readinessProbe:
+  initialDelaySeconds: 60
+
+livenessProbe:
+  initialDelaySeconds: 60
 ```
 
 ### Deploy LocalStack
 And you can use these values when installing the chart in your cluster:
 ```shell
 helm repo add localstack-charts https://localstack.github.io/helm-charts
-helm install localstack localstack-charts/localstack -f pro-values.yaml --namespace eks-lstack1-ns
+helm install localstack localstack-charts/localstack -f eks-values.yaml --namespace eks-lstack1-ns
 ```
 
 ### Get LocalStack container log
