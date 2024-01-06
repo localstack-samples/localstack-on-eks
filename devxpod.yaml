@@ -30,7 +30,7 @@ spec:
         imagePullPolicy: IfNotPresent
         resources:
           requests:
-            memory: "500Mi"
+            memory: "4Gi"
             cpu: "1"
       nodeSelector:
         kubernetes.io/os: linux
