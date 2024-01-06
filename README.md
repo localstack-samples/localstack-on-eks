@@ -118,7 +118,7 @@ kubectl logs localstack-854d8fdc8-q6lr2 -n eks-lstack1-ns
 
 ### Install devpod GDC
 ```shell
-kubectl apply -f devpod.yaml
+kubectl apply -f devxpod.yaml
 ```
 
 ### Uninstall LocalStack
