@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ls-dns
+  namespace: eks-lstack1-ns
+spec:
+  selector:
+    app.kubernetes.io/instance: localstack
+    app.kubernetes.io/name: localstack
+  clusterIP: 10.100.0.53
+  ports:
+    - name: dnstcp
+      protocol: TCP
+      port: 53
+      targetPort: 53
+    - name: dnsudp
+      protocol: UDP
+      port: 53
+      targetPort: 53

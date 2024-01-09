@@ -15,6 +15,16 @@ Install
 eksctl create cluster --name lseksctlCluster --region us-west-2 --version 1.28 --fargate
 ```
 
+## Update Core DNS
+```shell
+kubectl apply -f coredns.yaml
+kubectl rollout restart -n kube-system deployment/coredns
+```
+To see the core dns you can run this
+```shell
+kubectl get -n kube-system configmaps coredns -o yaml
+```
+
 ## Create a K8S namespace
 https://docs.aws.amazon.com/eks/latest/userguide/sample-deployment.html
 ```shell
@@ -28,6 +38,12 @@ eksctl create fargateprofile \
     --name ls-fargate-profile \
     --namespace eks-lstack1-ns 
 ```
+
+## Deploy LocalStack DNS service
+```shell
+kubectl apply -f ls-dns.yaml
+```
+
 
 ## Deploy sample application
 ```shell
@@ -69,15 +85,28 @@ image:
   repository: localstack/localstack-pro
   tag: "latest"
 
-nameOverride: "localstack"
-fullnameOverride: "localstack"
+#nameOverride: "localstack"
+#fullnameOverride: "localstack"
+
+service:
+  clusterIP: "10.100.0.42"
 
 extraEnvVars:
   - name: LOCALSTACK_AUTH_TOKEN
-    value: "<your LocalStack auth token>"
+    value: "<your LocalStack auth Token>"
+  - name: GATEWAY_LISTEN
+    value: "0.0.0.0:4566"
+  - name: DNS_RESOLVE_IP
+    value: "10.100.0.42"
+
 
 # enable debugging
 debug: true
+
+# This is not possible on Fargate as it requires privileged access
+#mountDind:
+#  enabled: true
+#  forceTLS: true
 
 lambda:
   # The lambda runtime executor.

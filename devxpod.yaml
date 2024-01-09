@@ -32,5 +32,8 @@ spec:
           requests:
             memory: "4Gi"
             cpu: "1"
+#      dnsConfig:
+#        nameservers:
+#          - 10.100.0.53
       nodeSelector:
         kubernetes.io/os: linux
