@@ -1,5 +1,7 @@
 # 🌐 Overview
-This blueprint has two solutions
+
+This blueprint has two solutions:
+
 1. Deploy LocalStack to AWS EKS with Fargate. 
 2. Deploy LocalStack on an engineer's laptop on EKS Anywhere with Docker.
 
@@ -33,198 +35,274 @@ guide you through the process of building, deploying, and test Solution-1 (Solut
 Solution-1 is not free. It will cost money to run EKS in AWS. Make sure to destroy your resources in the cleanup
 section to control your costs.
 
-### Prerequisites for Solution-1 🧰
+### Solution 1
+
+This solution has the EKS cluster deployed on AWS.
+
+#### Prerequisites for Solution-1 🧰
+
 - An AWS Account
 - [install Helm](https://helm.sh/docs/intro/install/)
 - [install kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [install eksctl](https://eksctl.io/installation/)
 
-### Get credentials to your AWS account
+#### Get credentials to your AWS account
 
-### Create EKS Cluster
+#### Create EKS Cluster
+
 This will create a new EKS cluster with a Fargate backend in your AWS Account, along with a new VPC.
 ```shell
-eksctl create cluster --name lseksctlCluster --region us-west-2 --version 1.28 --fargate
+export CLUSTER_NAME=lseksctl-cluster
+export CLUSTER_REGION=us-west-2
+eksctl create cluster --name $CLUSTER_NAME --region $CLUSTER_REGION --version 1.28 --fargate
 ```
 
-### Update Core DNS
+#### Create a K8S namespace
+
 ```shell
-kubectl apply -f coredns.yaml
+kubectl create namespace ls0
+```
+
+#### Create an EKS Fargate Profile
+
+```shell
+eksctl create fargateprofile \
+    --cluster $CLUSTER_NAME \
+    --name ls-fargate-profile \
+    --namespace ls0 
+```
+
+#### Set up cluster DNS
+
+Apply patch to CoreDNS to leverage Localstack's DNS instead for all `localhost.localstack.cloud` requests.
+
+```shell
+kubectl apply -f manifests/coredns/eks.aws.yaml
 kubectl rollout restart -n kube-system deployment/coredns
 ```
-To see the core dns you can run this
+
+Get CoreDNS config by running the following:
+
 ```shell
 kubectl get -n kube-system configmaps coredns -o yaml
 ```
 
-### Create a K8S namespace
+Make Localstack's DNS discoverable by creating the following service:
+
 ```shell
-kubectl create namespace eks-lstack1-ns
+kubectl apply -f manifests/coredns/ls-dns.yaml
 ```
 
-### Create an EKS Fargate Profile
+### Solution 2
+
+This solution has the EKS cluster deployed on your local machine, using the EKS anywhere plugin.
+
+#### Prerequisites for Solution-2 🧰
+
+- A laptop
+- [install Helm](https://helm.sh/docs/intro/install/)
+- [install kubectl](https://kubernetes.io/docs/tasks/tools/)
+- [install eksctl](https://eksctl.io/installation/)
+- [install eksanywhere plugin](https://anywhere.eks.amazonaws.com/docs/getting-started/install/)
+
+#### Create EKS anywhere cluster
+
+The following cluster creating takes about 5 minutes.
+
 ```shell
-eksctl create fargateprofile \
-    --cluster lseksctlCluster \
-    --name ls-fargate-profile \
-    --namespace eks-lstack1-ns 
+export CLUSTER_NAME=lseksctl-cluster
+eksctl anywhere create cluster -f clusters/eks-anywhere/$CLUSTER_NAME.yaml -v 6
 ```
 
-### Deploy LocalStack DNS service
+Export kubeconfig config:
+
 ```shell
-kubectl apply -f ls-dns.yaml
+export KUBECONFIG=${PWD}/${CLUSTER_NAME}/${CLUSTER_NAME}-eks-a-cluster.kubeconfig
 ```
 
-### Deploy sample application (optional)
+#### Create a K8S namespace
+
+```shell
+kubectl create namespace ls0
+```
+
+#### Set up cluster DNS
+
+Apply patch to CoreDNS to leverage Localstack's DNS instead for all `localhost.localstack.cloud` requests.
+
+```shell
+kubectl apply -f manifests/coredns/eks.anywhere.yaml
+kubectl rollout restart -n kube-system deployment/coredns
+```
+
+Get CoreDNS config by running the following:
+
+```shell
+kubectl get -n kube-system configmaps coredns -o yaml
+```
+
+Make Localstack's DNS discoverable by creating the following service:
+
+```shell
+kubectl apply -f manifests/coredns/ls-dns.yaml
+```
+
+### Deploy Apps
+
+All following instructions are identical on both solutions (1 & 2).
+
+#### Deploy sample application (optional)
+
 https://docs.aws.amazon.com/eks/latest/userguide/sample-deployment.html
+
 ```shell
-kubectl apply -f sample-app.yaml
+kubectl apply -f manifests/sample-app
 ```
 
-### Create sample K8S service
+#### Inspect deployed service
+
+List the deployed services:
+
 ```shell
-kubectl apply -f sample-service.yaml
+kubectl get all -n ls0
 ```
 
-### List all the services
+View details of the deployed service:
+
 ```shell
-kubectl get all -n eks-lstack1-ns
+kubectl -n ls0 describe service eks-sample-linux-service
 ```
 
-### View details of the deployed service
+Run a shell on a pod.
+
 ```shell
-kubectl -n eks-lstack1-ns describe service eks-sample-linux-service
+export RANDOM_POD_NAME=$(kubectl get pods -l "app=eks-sample-linux-app" -n ls0 -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -it $RANDOM_POD_NAME -n ls0 -- /bin/bash
 ```
 
-### Run a shell on a pod that you described in List all the services step
-Replacing pod name with name of your pod
+Finally, from inside the pod, curl the endpoint by using the service name:
+
 ```shell
-kubectl exec -it eks-sample-linux-deployment-5b568bf897-cv5zx -n eks-lstack1-ns -- /bin/bash
-```
-#### Curl the endpoint
-```shell
-curl eks-sample-linux-service
+curl -i eks-sample-linux-service
 ```
 
-### Update helm config with LocalStack pro
+#### Update helm config with LocalStack Pro
+
 You can use this chart with LocalStack Pro by:
+
 - Changing the image to localstack/localstack-pro.
 - Providing your Auth Token as an environment variable.
-You can set these values in a YAML file (in this example pro-values.yaml):
-```yaml
-image:
-  repository: localstack/localstack-pro
-  tag: "latest"
 
-service:
-  clusterIP: "10.100.0.42"
+Let's generate our `values.yaml` helm spec by substituting the image name and the auth token using the [charts/localstack/values.template.yaml](charts/localstack/values.template.yaml):
 
-extraEnvVars:
-  - name: LOCALSTACK_AUTH_TOKEN
-    value: "<your LocalStack auth Token>"
-  - name: GATEWAY_LISTEN
-    value: "0.0.0.0:4566"
-  - name: DNS_RESOLVE_IP
-    value: "10.100.0.42"
-
-# enable debugging
-debug: true
-
-lambda:
-  # The lambda runtime executor.
-  # Depending on the value, LocalStack will execute lambdas either in docker containers or in kubernetes pods
-  # The value "kubernetes" depends on the service account and pod role being activated
-  executor: "kubernetes"
-  environment_timeout: 400
-
-  security_context:
-    runAsUser: 1000
-    fsGroup: 1000
-
-resources:
-  requests:
-    cpu: 1000m
-    memory: 4Gi
-
-readinessProbe:
-  initialDelaySeconds: 60
-
-livenessProbe:
-  initialDelaySeconds: 60
+```shell
+export LOCALSTACK_IMAGE_NAME="localstack/localstack-pro"
+export LOCALSTACK_AUTH_TOKEN="<your auth token>"
+envsubst < charts/localstack/values.template.yaml > charts/localstack/values.yaml
 ```
 
-### Deploy LocalStack
+#### Deploy LocalStack
+
 And you can use these values when installing the chart in your cluster:
+
 ```shell
 helm repo add localstack-charts https://localstack.github.io/helm-charts
-helm install localstack localstack-charts/localstack -f eks-values.yaml --namespace eks-lstack1-ns
+helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace ls0
 ```
 
-### Get LocalStack container log
+**Warning: you temporarily need to use the helm chart provided on branch `nameserver-config`. `git clone -b nameserver-config https://github.com/localstack/helm-charts/tree/nameserver-config` in a different directory `$LOCALSTACK_CHARTS_DIR`. Following that, run `helm install localstack ./$LOCALSTACK_CHARTS_DIR/charts/localstack -f charts/localstack/values.yaml --namespace ls0`**.
+
+#### Get LocalStack container logs
+
 Example
-kubectl logs <podname> -n eks-lstack1-ns
+
 ```shell
-kubectl logs localstack-854d8fdc8-q6lr2 -n eks-lstack1-ns
+export LS_POD_NAME=$(kubectl get pods -l "app.kubernetes.io/name=localstack" -n ls0 -o jsonpath="{.items[0].metadata.name}")
+kubectl logs $LS_POD_NAME -n ls0
 ```
 
-### Install devpod GDC
+#### Install devpod GDC
 ```shell
-kubectl apply -f devxpod.yaml
+kubectl apply -f manifests/devxpod/deployment.yaml
 ```
 
-## Test Solution-1
+## Test Solution-1 / Solution-2
+
 Now EKS is deployed with a unique namespace. LocalStack and the DevPod are both running.
-### Open a shell in the DevPod
+
 After opening the shell, the command that follow are in the DevPod.
+
 ```shell
-kubectl exec -it <podname> -n eks-lstack1-ns -- /bin/bash
+export DEV_POD_NAME=$(kubectl get pods -l "app=devxpod" -n ls0 -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -it $DEV_POD_NAME -n ls0 -- /bin/bash
 ```
-**Clone Repo(s)**
+
 Clone the repos we're testing. In an actual scenario, you might clone multiple repos, and/or restore LocalStack
 CloudPod state before running tests.
+
 ```shell
 git clone https://github.com/localstack-samples/lambda-ddb.git
 ```
+
 Get into the repo dir.
+
 ```shell
 cd lambda-ddb
 ```
-**Bootstrap the solution** - This is a solution built with AWS CDK.
+
+Bootstrap the solution. This is a solution built with AWS CDK.
+
 ```shell
 make integ-awscdk-bootstrap
 ```
-**Deploy the solution**
+
+Deploy the AWS CDK solution.
+
 ```shell
 make integ-awscdk-deploy
 ```
-**Test the solution**
+
+Test the deploy AWS CDK solution.
+
 ```shell
 make integ-awscdk-test
 ```
 
+### Cleanup Solution-1
 
-## Cleanup Solution-1
+#### Uninstall LocalStack
 
-### Uninstall LocalStack
+Delete the localstack helm release, remove the namespace, and then delete the fargate profile.
+
 ```shell
-helm uninstall localstack --namespace eks-lstack1-ns
-```
-
-## Delete the namespace
-```shell
-kubectl delete namespace eks-lstack1-ns
-```
-
-## Delete fargate profile
-```shell
+helm uninstall localstack --namespace ls0
+kubectl delete namespace ls0
 eksctl delete fargateprofile \
     --cluster lseksctlCluster \
     --name ls-fargate-profile 
 ```
 
-## Delete the cluster
+#### Delete the cluster
+
 You have to wait a bit for the delete profile to clean up before doing this command.
 This command will also take a couple minutes to cleanup the VPC that was created when this EKS cluster was created.
+
 ```shell
-eksctl delete cluster --name lseksctlCluster --region us-west-2
+eksctl delete cluster --name $CLUSTER_NAME --region $CLUSTER_REGION
+```
+
+### Cleanup Solution-2
+
+Delete the localstack helm release & remove the namespace.
+
+```shell
+helm uninstall localstack --namespace ls0
+kubectl delete namespace ls0
+```
+
+And then finally, delete the cluster
+
+```shell
+eksctl anywhere delete cluster -f clusters/eks-anywhere/$CLUSTER_NAME.yaml
+rm -r $CLUSTER_NAME
 ```

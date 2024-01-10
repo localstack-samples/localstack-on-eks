@@ -1,5 +1,4 @@
 .idea
 eks-ls.log
-pro-values.yaml
-eks-values.yaml
-.DS_Store
+lseksctl-cluster
+charts/localstack/values.yaml

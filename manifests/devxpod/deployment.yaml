@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: eks-sample-linux-deployment
-  namespace: eks-lstack1-ns
+  name: devxpod
+  namespace: ls0
   labels:
-    app: eks-sample-linux-app
+    app: devxpod
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
-      app: eks-sample-linux-app
+      app: devxpod
   template:
     metadata:
       labels:
-        app: eks-sample-linux-app
+        app: devxpod
     spec:
       affinity:
         nodeAffinity:
@@ -26,11 +26,12 @@ spec:
                 - amd64
                 - arm64
       containers:
-      - name: nginx
-        image: public.ecr.aws/nginx/nginx:1.23
-        ports:
-        - name: http
-          containerPort: 80
+      - name: devxpod-gdc
+        image: cabeaulac/devxpod-gdc:latest
         imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "1"
       nodeSelector:
         kubernetes.io/os: linux
