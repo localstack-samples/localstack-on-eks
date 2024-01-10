@@ -173,7 +173,7 @@ View details of the deployed service:
 kubectl -n ls0 describe service eks-sample-linux-service
 ```
 
-Run a shell on a pod that you just gotten previously:
+Run a shell on a pod.
 
 ```shell
 export RANDOM_POD_NAME=$(kubectl get pods -l "app=eks-sample-linux-app" -n ls0 -o jsonpath="{.items[0].metadata.name}")
