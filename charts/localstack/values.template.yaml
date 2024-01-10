@@ -1,13 +1,13 @@
 image:
-  repository: localstack/localstack-pro
-  tag: "latest"
+  repository: "$LOCALSTACK_IMAGE_NAME"
+  tag: "$LOCALSTACK_IMAGE_TAG"
 
 service:
   clusterIP: "10.100.0.42"
 
 extraEnvVars:
   - name: LOCALSTACK_AUTH_TOKEN
-    value: $LOCALSTACK_AUTH_TOKEN
+    value: "$LOCALSTACK_AUTH_TOKEN"
   - name: GATEWAY_LISTEN
     value: "0.0.0.0:4566"
   - name: DNS_RESOLVE_IP

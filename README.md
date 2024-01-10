@@ -90,7 +90,7 @@ kubectl get -n kube-system configmaps coredns -o yaml
 Make Localstack's DNS discoverable by creating the following service:
 
 ```shell
-kubectl apply -f ls-dns.yaml
+kubectl apply -f manifests/coredns/ls-dns.yaml
 ```
 
 ### Solution 2
@@ -106,6 +106,8 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 - [install eksanywhere plugin](https://anywhere.eks.amazonaws.com/docs/getting-started/install/)
 
 #### Create EKS anywhere cluster
+
+The following cluster creating takes about 5 minutes.
 
 ```shell
 export CLUSTER_NAME=lseksctl-cluster
@@ -142,7 +144,7 @@ kubectl get -n kube-system configmaps coredns -o yaml
 Make Localstack's DNS discoverable by creating the following service:
 
 ```shell
-kubectl apply -f ls-dns.yaml
+kubectl apply -f manifests/coredns/ls-dns.yaml
 ```
 
 ### Deploy Apps
@@ -174,13 +176,14 @@ kubectl -n eks-lstack1-ns describe service eks-sample-linux-service
 Run a shell on a pod that you just gotten previously:
 
 ```shell
-kubectl exec -it eks-sample-linux-deployment-5b568bf897-cv5zx -n eks-lstack1-ns -- /bin/bash
+export RANDOM_POD_NAME=$(kubectl get pods -l "app=eks-sample-linux-app" -n eks-lstack1-ns -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -it $RANDOM_POD_NAME -n eks-lstack1-ns -- /bin/bash
 ```
 
 Finally, from inside the pod, curl the endpoint by using the service name:
 
 ```shell
-curl eks-sample-linux-service
+curl -i eks-sample-linux-service
 ```
 
 #### Update helm config with LocalStack Pro
@@ -207,16 +210,13 @@ helm repo add localstack-charts https://localstack.github.io/helm-charts
 helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace eks-lstack1-ns
 ```
 
-#### Get LocalStack container log
+#### Get LocalStack container logs
 
 Example
 
 ```shell
-kubectl logs <podname> -n eks-lstack1-ns
-```
-
-```shell
-kubectl logs localstack-854d8fdc8-q6lr2 -n eks-lstack1-ns
+export LS_POD_NAME=$(kubectl get pods -l "app.kubernetes.io/name=localstack" -n eks-lstack1-ns -o jsonpath="{.items[0].metadata.name}")
+kubectl logs $LS_POD_NAME -n eks-lstack1-ns
 ```
 
 #### Install devpod GDC
@@ -231,7 +231,8 @@ Now EKS is deployed with a unique namespace. LocalStack and the DevPod are both 
 After opening the shell, the command that follow are in the DevPod.
 
 ```shell
-kubectl exec -it <podname> -n eks-lstack1-ns -- /bin/bash
+export DEV_POD_NAME=$(kubectl get pods -l "app=devxpod" -n eks-lstack1-ns -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -it $DEV_POD_NAME -n eks-lstack1-ns -- /bin/bash
 ```
 
 Clone the repos we're testing. In an actual scenario, you might clone multiple repos, and/or restore LocalStack
@@ -245,6 +246,12 @@ Get into the repo dir.
 
 ```shell
 cd lambda-ddb
+```
+
+Export the AWS profile that points to Localstack's deployment.
+
+```shell
+export AWS_PROFILE=localstack
 ```
 
 Bootstrap the solution. This is a solution built with AWS CDK.
