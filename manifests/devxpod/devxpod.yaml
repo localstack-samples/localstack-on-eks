@@ -24,6 +24,7 @@ spec:
                 operator: In
                 values:
                 - amd64
+                - arm64
       containers:
       - name: devxpod-gdc
         image: cabeaulac/devxpod-gdc:latest

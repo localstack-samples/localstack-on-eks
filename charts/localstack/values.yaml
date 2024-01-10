@@ -1,0 +1,43 @@
+image:
+  repository: localstack/localstack-pro
+  tag: "latest"
+
+# nameOverride: "localstack"
+# fullnameOverride: "localstack"
+
+# https://stackoverflow.com/questions/54778204/ip-pod-to-container-environment-variable
+service:
+  clusterIP: "10.100.0.42"
+
+extraEnvVars:
+  - name: LOCALSTACK_AUTH_TOKEN
+    value: "ls-zADUlUve-TEDo-guFU-6660-6218meNU36b4"
+  - name: GATEWAY_LISTEN
+    value: "0.0.0.0:4566"
+  - name: DNS_RESOLVE_IP
+    value: "10.100.0.42"
+
+# enable debugging
+debug: true
+
+lambda:
+  # The lambda runtime executor.
+  # Depending on the value, LocalStack will execute lambdas either in docker containers or in kubernetes pods
+  # The value "kubernetes" depends on the service account and pod role being activated
+  executor: "kubernetes"
+  environment_timeout: 400
+
+  security_context:
+    runAsUser: 1000
+    fsGroup: 1000
+
+resources:
+  requests:
+    cpu: 1000m
+    memory: 4Gi
+
+readinessProbe:
+  initialDelaySeconds: 60
+
+livenessProbe:
+  initialDelaySeconds: 60

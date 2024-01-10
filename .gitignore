@@ -1,4 +1,3 @@
 .idea
 eks-ls.log
-pro-values.yaml
-eks-values.yaml
+lseksctl-cluster
