@@ -210,6 +210,8 @@ helm repo add localstack-charts https://localstack.github.io/helm-charts
 helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace eks-lstack1-ns
 ```
 
+**Warning: you temporarily need to use the helm chart provided on branch `nameserver-config`. `git clone -b nameserver-config https://github.com/localstack/helm-charts/tree/nameserver-config` in a different directory `$LOCALSTACK_CHARTS_DIR`. Following that, run `helm install localstack ./$LOCALSTACK_CHARTS_DIR/charts/localstack -f charts/localstack/values.yaml --namespace eks-lstack1-ns`**.
+
 #### Get LocalStack container logs
 
 Example
