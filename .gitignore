@@ -2,3 +2,5 @@
 eks-ls.log
 lseksctl-cluster
 charts/localstack/values.yaml
+.DS_Store
+eks-values.yaml
