@@ -35,7 +35,7 @@ guide you through the process of building, deploying, and test Solution-1 (Solut
 Solution-1 is not free. It will cost money to run EKS in AWS. Make sure to destroy your resources in the cleanup
 section to control your costs.
 
-### Solution 1
+### Solution-1
 
 This solution has the EKS cluster deployed on AWS.
 
@@ -93,7 +93,7 @@ Make Localstack's DNS discoverable by creating the following service:
 kubectl apply -f manifests/coredns/ls-dns.yaml
 ```
 
-### Solution 2
+### Solution-2
 
 This solution has the EKS cluster deployed on your local machine, using the EKS anywhere plugin.
 
@@ -147,7 +147,7 @@ Make Localstack's DNS discoverable by creating the following service:
 kubectl apply -f manifests/coredns/ls-dns.yaml
 ```
 
-### Deploy Apps
+### Deploy Apps (Solution-1 & Solution-2)
 
 All following instructions are identical on both solutions (1 & 2).
 
@@ -226,7 +226,7 @@ kubectl logs $LS_POD_NAME -n ls0
 kubectl apply -f manifests/devxpod/deployment.yaml
 ```
 
-## Test Solution-1 / Solution-2
+## Test (Solution-1 & Solution-2)
 
 Now EKS is deployed with a unique namespace. LocalStack and the DevPod are both running.
 
