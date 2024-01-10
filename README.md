@@ -197,6 +197,7 @@ Let's generate our `values.yaml` helm spec by substituting the image name and th
 
 ```shell
 export LOCALSTACK_IMAGE_NAME="localstack/localstack-pro"
+export LOCALSTACK_IMAGE_TAG="latest"
 export LOCALSTACK_AUTH_TOKEN="<your auth token>"
 envsubst < charts/localstack/values.template.yaml > charts/localstack/values.yaml
 ```

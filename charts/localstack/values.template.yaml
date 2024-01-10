@@ -4,6 +4,7 @@ image:
 
 service:
   clusterIP: "10.100.0.42"
+  dnsService: true
 
 extraEnvVars:
   - name: LOCALSTACK_AUTH_TOKEN
