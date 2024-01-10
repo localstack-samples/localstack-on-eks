@@ -292,7 +292,7 @@ You have to wait a bit for the delete profile to clean up before doing this comm
 This command will also take a couple minutes to cleanup the VPC that was created when this EKS cluster was created.
 
 ```shell
-eksctl delete cluster --name lseksctlCluster --region us-west-2
+eksctl delete cluster --name $CLUSTER_NAME --region $CLUSTER_REGION
 ```
 
 ### Cleanup Solution-2
@@ -308,5 +308,5 @@ And then finally, delete the cluster
 
 ```shell
 eksctl anywhere delete cluster -f clusters/eks-anywhere/$CLUSTER_NAME.yaml
-rm -r lseksctl-cluster
+rm -r $CLUSTER_NAME
 ```
