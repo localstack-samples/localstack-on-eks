@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: devxpod
-  namespace: eks-lstack1-ns
+  namespace: ls0
   labels:
     app: devxpod
 spec:

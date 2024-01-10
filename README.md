@@ -60,7 +60,7 @@ eksctl create cluster --name $CLUSTER_NAME --region $CLUSTER_REGION --version 1.
 #### Create a K8S namespace
 
 ```shell
-kubectl create namespace eks-lstack1-ns
+kubectl create namespace ls0
 ```
 
 #### Create an EKS Fargate Profile
@@ -69,7 +69,7 @@ kubectl create namespace eks-lstack1-ns
 eksctl create fargateprofile \
     --cluster $CLUSTER_NAME \
     --name ls-fargate-profile \
-    --namespace eks-lstack1-ns 
+    --namespace ls0 
 ```
 
 #### Set up cluster DNS
@@ -123,7 +123,7 @@ export KUBECONFIG=${PWD}/${CLUSTER_NAME}/${CLUSTER_NAME}-eks-a-cluster.kubeconfi
 #### Create a K8S namespace
 
 ```shell
-kubectl create namespace eks-lstack1-ns
+kubectl create namespace ls0
 ```
 
 #### Set up cluster DNS
@@ -164,20 +164,20 @@ kubectl apply -f manifests/sample-app
 List the deployed services:
 
 ```shell
-kubectl get all -n eks-lstack1-ns
+kubectl get all -n ls0
 ```
 
 View details of the deployed service:
 
 ```shell
-kubectl -n eks-lstack1-ns describe service eks-sample-linux-service
+kubectl -n ls0 describe service eks-sample-linux-service
 ```
 
 Run a shell on a pod that you just gotten previously:
 
 ```shell
-export RANDOM_POD_NAME=$(kubectl get pods -l "app=eks-sample-linux-app" -n eks-lstack1-ns -o jsonpath="{.items[0].metadata.name}")
-kubectl exec -it $RANDOM_POD_NAME -n eks-lstack1-ns -- /bin/bash
+export RANDOM_POD_NAME=$(kubectl get pods -l "app=eks-sample-linux-app" -n ls0 -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -it $RANDOM_POD_NAME -n ls0 -- /bin/bash
 ```
 
 Finally, from inside the pod, curl the endpoint by using the service name:
@@ -207,18 +207,18 @@ And you can use these values when installing the chart in your cluster:
 
 ```shell
 helm repo add localstack-charts https://localstack.github.io/helm-charts
-helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace eks-lstack1-ns
+helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace ls0
 ```
 
-**Warning: you temporarily need to use the helm chart provided on branch `nameserver-config`. `git clone -b nameserver-config https://github.com/localstack/helm-charts/tree/nameserver-config` in a different directory `$LOCALSTACK_CHARTS_DIR`. Following that, run `helm install localstack ./$LOCALSTACK_CHARTS_DIR/charts/localstack -f charts/localstack/values.yaml --namespace eks-lstack1-ns`**.
+**Warning: you temporarily need to use the helm chart provided on branch `nameserver-config`. `git clone -b nameserver-config https://github.com/localstack/helm-charts/tree/nameserver-config` in a different directory `$LOCALSTACK_CHARTS_DIR`. Following that, run `helm install localstack ./$LOCALSTACK_CHARTS_DIR/charts/localstack -f charts/localstack/values.yaml --namespace ls0`**.
 
 #### Get LocalStack container logs
 
 Example
 
 ```shell
-export LS_POD_NAME=$(kubectl get pods -l "app.kubernetes.io/name=localstack" -n eks-lstack1-ns -o jsonpath="{.items[0].metadata.name}")
-kubectl logs $LS_POD_NAME -n eks-lstack1-ns
+export LS_POD_NAME=$(kubectl get pods -l "app.kubernetes.io/name=localstack" -n ls0 -o jsonpath="{.items[0].metadata.name}")
+kubectl logs $LS_POD_NAME -n ls0
 ```
 
 #### Install devpod GDC
@@ -233,8 +233,8 @@ Now EKS is deployed with a unique namespace. LocalStack and the DevPod are both 
 After opening the shell, the command that follow are in the DevPod.
 
 ```shell
-export DEV_POD_NAME=$(kubectl get pods -l "app=devxpod" -n eks-lstack1-ns -o jsonpath="{.items[0].metadata.name}")
-kubectl exec -it $DEV_POD_NAME -n eks-lstack1-ns -- /bin/bash
+export DEV_POD_NAME=$(kubectl get pods -l "app=devxpod" -n ls0 -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -it $DEV_POD_NAME -n ls0 -- /bin/bash
 ```
 
 Clone the repos we're testing. In an actual scenario, you might clone multiple repos, and/or restore LocalStack
@@ -275,8 +275,8 @@ make integ-awscdk-test
 Delete the localstack helm release, remove the namespace, and then delete the fargate profile.
 
 ```shell
-helm uninstall localstack --namespace eks-lstack1-ns
-kubectl delete namespace eks-lstack1-ns
+helm uninstall localstack --namespace ls0
+kubectl delete namespace ls0
 eksctl delete fargateprofile \
     --cluster lseksctlCluster \
     --name ls-fargate-profile 
@@ -296,8 +296,8 @@ eksctl delete cluster --name $CLUSTER_NAME --region $CLUSTER_REGION
 Delete the localstack helm release & remove the namespace.
 
 ```shell
-helm uninstall localstack --namespace eks-lstack1-ns
-kubectl delete namespace eks-lstack1-ns
+helm uninstall localstack --namespace ls0
+kubectl delete namespace ls0
 ```
 
 And then finally, delete the cluster
