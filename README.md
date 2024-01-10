@@ -248,12 +248,6 @@ Get into the repo dir.
 cd lambda-ddb
 ```
 
-Export the AWS profile that points to Localstack's deployment.
-
-```shell
-export AWS_PROFILE=localstack
-```
-
 Bootstrap the solution. This is a solution built with AWS CDK.
 
 ```shell
