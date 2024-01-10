@@ -52,7 +52,7 @@ This solution has the EKS cluster deployed on AWS.
 
 This will create a new EKS cluster with a Fargate backend in your AWS Account, along with a new VPC.
 ```shell
-export CLUSTER_NAME=lseksctl-cluster
+export CLUSTER_NAME=eks-cluster
 export CLUSTER_REGION=us-west-2
 eksctl create cluster --name $CLUSTER_NAME --region $CLUSTER_REGION --version 1.28 --fargate
 ```
@@ -110,7 +110,7 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 The following cluster creating takes about 5 minutes.
 
 ```shell
-export CLUSTER_NAME=lseksctl-cluster
+export CLUSTER_NAME=eks-cluster
 eksctl anywhere create cluster -f clusters/eks-anywhere/$CLUSTER_NAME.yaml -v 6
 ```
 
