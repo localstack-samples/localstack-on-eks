@@ -2,16 +2,12 @@ image:
   repository: localstack/localstack-pro
   tag: "latest"
 
-# nameOverride: "localstack"
-# fullnameOverride: "localstack"
-
-# https://stackoverflow.com/questions/54778204/ip-pod-to-container-environment-variable
 service:
   clusterIP: "10.100.0.42"
 
 extraEnvVars:
   - name: LOCALSTACK_AUTH_TOKEN
-    value: "ls-zADUlUve-TEDo-guFU-6660-6218meNU36b4"
+    value: $LOCALSTACK_AUTH_TOKEN
   - name: GATEWAY_LISTEN
     value: "0.0.0.0:4566"
   - name: DNS_RESOLVE_IP

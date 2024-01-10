@@ -1,3 +1,4 @@
 .idea
 eks-ls.log
 lseksctl-cluster
+charts/localstack/values.yaml
