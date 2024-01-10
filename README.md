@@ -58,7 +58,6 @@ kubectl get -n kube-system configmaps coredns -o yaml
 ```
 
 ### Create a K8S namespace
-https://docs.aws.amazon.com/eks/latest/userguide/sample-deployment.html
 ```shell
 kubectl create namespace eks-lstack1-ns
 ```
@@ -76,7 +75,8 @@ eksctl create fargateprofile \
 kubectl apply -f ls-dns.yaml
 ```
 
-### Deploy sample application
+### Deploy sample application (optional)
+https://docs.aws.amazon.com/eks/latest/userguide/sample-deployment.html
 ```shell
 kubectl apply -f sample-app.yaml
 ```
