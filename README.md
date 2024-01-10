@@ -67,7 +67,7 @@ kubectl create namespace eks-lstack1-ns
 
 ```shell
 eksctl create fargateprofile \
-    --cluster lseksctlCluster \
+    --cluster $CLUSTER_NAME \
     --name ls-fargate-profile \
     --namespace eks-lstack1-ns 
 ```
