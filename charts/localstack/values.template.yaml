@@ -2,6 +2,12 @@ image:
   repository: "$LOCALSTACK_IMAGE_NAME"
   tag: "$LOCALSTACK_IMAGE_TAG"
 
+command:
+  cmd:
+    - /bin/bash
+    - -c
+    - echo 'ulimit -Sn 32767' >> /root/.bashrc && echo 'ulimit -Su 16383' >> /root/.bashrc && docker-entrypoint.sh
+
 service:
   clusterIP: "10.100.0.42"
   dnsService: true
@@ -31,7 +37,7 @@ lambda:
 resources:
   requests:
     cpu: 2000m
-    memory: 4Gi
+    memory: 8Gi
 
 readinessProbe:
   initialDelaySeconds: 60
