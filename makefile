@@ -26,3 +26,14 @@ aws-deploy-ls:
 aws-ssh-devpod: DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n $(LS_K8S_NAMESPACE) -o jsonpath="{.items[0].metadata.name}")
 aws-ssh-devpod:
 	kubectl exec -it $(DEV_POD_NAME) -n $(LS_K8S_NAMESPACE) -- /bin/bash;
+
+aws-cleanup-1:
+	helm uninstall localstack --namespace $(LS_K8S_NAMESPACE)
+	kubectl delete namespace $(LS_K8S_NAMESPACE)
+	eksctl delete fargateprofile \
+		--cluster $(CLUSTER_NAME) \
+		--name ls-fargate-profile
+
+aws-cleanup-2:
+	eksctl delete cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION)
+
