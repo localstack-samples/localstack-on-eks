@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devxpod
+  namespace: ls0
+  labels:
+    app: devxpod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devxpod
+  template:
+    metadata:
+      labels:
+        app: devxpod
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+      containers:
+      - name: devxpod-gdc
+        image: cabeaulac/devxpod-gdc:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: "8Gi"
+            cpu: "2"
+      nodeSelector:
+        kubernetes.io/os: linux
