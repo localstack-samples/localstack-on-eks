@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: devxpod
-  namespace: ls0
+  namespace: ls1
   labels:
     app: devxpod
 spec:
@@ -31,7 +31,7 @@ spec:
         imagePullPolicy: IfNotPresent
         resources:
           requests:
-            memory: "4Gi"
-            cpu: "1"
+            memory: "8Gi"
+            cpu: "2"
       nodeSelector:
         kubernetes.io/os: linux

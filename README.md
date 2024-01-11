@@ -14,6 +14,7 @@ The two solutions having nearly identical tooling allows enterprise teams to cre
 solution testing platform.
 
 ### LocalStack on AWS EKS Fargate
+Multiple namespaces isolate testing of different solutions.
 ![LSonEKS](./docs/design-ls-on-aws-eks.drawio.png "LSonEKS")
 
 ### LocalStack on Engineer's Laptop with EKS Anywhere
@@ -59,14 +60,66 @@ You can do the quickstart that automates commands, or you can do the detailed in
 
 #### Solution-1 Quickstart Steps
 
-**Setup Cluster, Namespace, and Fargate Profile**
+**Setup Cluster and CoreDNS**
 ```shell
 make aws-setup-cluster
 ```
 
-**Deploy LocalStack and Dev Pod**
+**Create Namespaces and Fargate Profiles**
 ```shell
-make aws-deploy-ls
+make aws-setup-nss
+```
+
+**Deploy LocalStack and Dev Pod to both Namespaces**
+```shell
+make aws-deploy-all-ns
+```
+
+**Open Shell to DevPod**
+```shell
+make aws-ssh-devpod0
+```
+
+**Clone solution repo and test**
+```shell
+git clone https://github.com/localstack-samples/lambda-ddb.git
+```
+
+Get into the repo dir.
+
+```shell
+cd lambda-ddb
+```
+
+Bootstrap the solution. This is a solution built with AWS CDK.
+
+```shell
+make integ-awscdk-bootstrap
+```
+
+Deploy the AWS CDK solution.
+
+```shell
+make integ-awscdk-deploy
+```
+
+Test the deploy AWS CDK solution.
+
+```shell
+make integ-awscdk-test
+```
+
+Restart LocalStack inside the running Pod. Now you can deploy again and retest.
+
+```shell
+make reset-ls
+```
+
+**Cleanup EKS Cluster**
+
+```shell
+make aws-cleanup-nss
+make aws-cleanup-cluster
 ```
 
 ### Solution-1 Detailed Steps
