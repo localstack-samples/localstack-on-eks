@@ -48,12 +48,38 @@ This solution has the EKS cluster deployed on AWS.
 
 #### Get credentials to your AWS account
 
+#### Create a file named `.env-local`
+Put these contents in it
+```shell
+export LOCALSTACK_AUTH_TOKEN=<your LocalStack auth token>
+```
+
+### Solution-1 Quickstart
+You can do the quickstart that automates commands, or you can do the detailed instructions below this section.
+
+#### Solution-1 Quickstart Steps
+
+**Setup Cluster, Namespace, and Fargate Profile**
+```shell
+make aws-setup-cluster
+```
+
+**Deploy LocalStack and Dev Pod**
+```shell
+make aws-deploy-ls
+```
+
+### Solution-1 Detailed Steps
+
+#### Source the .env file
+```shell
+source .env
+```
+
 #### Create EKS Cluster
 
 This will create a new EKS cluster with a Fargate backend in your AWS Account, along with a new VPC.
 ```shell
-export CLUSTER_NAME=eks-cluster
-export CLUSTER_REGION=us-west-2
 eksctl create cluster --name $CLUSTER_NAME --region $CLUSTER_REGION --version 1.28 --fargate
 ```
 
@@ -196,9 +222,6 @@ You can use this chart with LocalStack Pro by:
 Let's generate our `values.yaml` helm spec by substituting the image name and the auth token using the [charts/localstack/values.template.yaml](charts/localstack/values.template.yaml):
 
 ```shell
-export LOCALSTACK_IMAGE_NAME="localstack/localstack-pro"
-export LOCALSTACK_IMAGE_TAG="latest"
-export LOCALSTACK_AUTH_TOKEN="<your auth token>"
 envsubst < charts/localstack/values.template.yaml > charts/localstack/values.yaml
 ```
 
@@ -219,7 +242,7 @@ Example
 
 ```shell
 export LS_POD_NAME=$(kubectl get pods -l "app.kubernetes.io/name=localstack" -n ls0 -o jsonpath="{.items[0].metadata.name}")
-kubectl logs $LS_POD_NAME -n ls0
+kubectl logs $LS_POD_NAME -n $LS_K8S_NAMESPACE
 ```
 
 #### Install devpod GDC
@@ -234,8 +257,8 @@ Now EKS is deployed with a unique namespace. LocalStack and the DevPod are both 
 After opening the shell, the command that follow are in the DevPod.
 
 ```shell
-export DEV_POD_NAME=$(kubectl get pods -l "app=devxpod" -n ls0 -o jsonpath="{.items[0].metadata.name}")
-kubectl exec -it $DEV_POD_NAME -n ls0 -- /bin/bash
+export DEV_POD_NAME=$(kubectl get pods -l "app=devxpod" -n $LS_K8S_NAMESPACE -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -it $DEV_POD_NAME -n $LS_K8S_NAMESPACE -- /bin/bash
 ```
 
 Clone the repos we're testing. In an actual scenario, you might clone multiple repos, and/or restore LocalStack
