@@ -15,7 +15,7 @@ gen-coredns:
 	>> coredns-tmp.yaml
 
 aws-setup-ns: gen-coredns
-	#kubectl create namespace ls$(NS_NUM);
+	kubectl create namespace ls$(NS_NUM);
 	eksctl create fargateprofile \
     --cluster $(CLUSTER_NAME) \
     --name ls-fargate-profile$(NS_NUM) \
