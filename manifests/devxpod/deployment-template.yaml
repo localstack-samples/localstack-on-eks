@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: devxpod
-  namespace: ls1
+  name: devxpod-ls${NS_NUM}
+  namespace: ls${NS_NUM}
   labels:
-    app: devxpod
+    app: devxpod${NS_NUM}
 spec:
   replicas: 1
   selector:
@@ -26,12 +26,15 @@ spec:
                 - amd64
                 - arm64
       containers:
-      - name: devxpod-gdc
+      - name: devxpod
         image: cabeaulac/devxpod-gdc:latest
         imagePullPolicy: IfNotPresent
         resources:
           requests:
             memory: "8Gi"
             cpu: "2"
+        env:
+          - name: NS_LOCALSTACK_HOST
+            value: localstack${NS_NUM}
       nodeSelector:
         kubernetes.io/os: linux
