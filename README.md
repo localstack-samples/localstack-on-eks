@@ -61,23 +61,25 @@ You can do the quickstart that automates commands, or you can do the detailed in
 #### Solution-1 Quickstart Steps
 
 **Setup Cluster and CoreDNS**
+This blueprint builds namespaces in the format of `ls<NS_NUM>`. So, we're going
+to choose a Namespace number for the following targets. 
 ```shell
-make aws-setup-cluster
+make aws-setup-cluster NS_NUM=0
 ```
 
 **Create Namespaces and Fargate Profiles**
 ```shell
-make aws-setup-nss
+make aws-setup-ns NS_NUM=0
 ```
 
-**Deploy LocalStack and Dev Pod to both Namespaces**
+**Deploy LocalStack and Dev Pod Namespace ls0**
 ```shell
-make aws-deploy-all-ns
+make  aws-deploy-ls NS_NUM=0
 ```
 
 **Open Shell to DevPod**
 ```shell
-make aws-ssh-devpod0
+make aws-ssh-devpod NS_NUM=0
 ```
 
 **Clone solution repo and test**

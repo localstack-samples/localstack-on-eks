@@ -7,20 +7,27 @@ command:
   - -c
   - echo 'ulimit -Sn 32767' >> /root/.bashrc && echo 'ulimit -Su 16383' >> /root/.bashrc && docker-entrypoint.sh
 
+nameOverride: "localstack${NS_NUM}"
+fullnameOverride: "localstack${NS_NUM}"
+
 service:
-  clusterIP: "10.100.0.42"
+  clusterIP: "10.100.${NS_NUM}.42"
   dnsService: true
 
 extraEnvVars:
   - name: LOCALSTACK_AUTH_TOKEN
     value: "$LOCALSTACK_AUTH_TOKEN"
+  - name: LOCALSTACK_AUTH_TOKEN
+    value: "$LOCALSTACK_AUTH_TOKEN"
   - name: GATEWAY_LISTEN
     value: "0.0.0.0:4566"
   - name: DNS_RESOLVE_IP
-    value: "10.100.0.42"
+    value: "10.100.${NS_NUM}.42"
+  - name: LOCALSTACK_HOST
+    value: "localstack${NS_NUM}:4566"
 
 # enable debugging
-debug: true
+#debug: true
 
 lambda:
   # The lambda runtime executor.
