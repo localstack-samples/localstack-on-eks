@@ -69,14 +69,15 @@ deploy-setup:
 	helm repo add localstack-charts https://localstack.github.io/helm-charts;
 
 deploy-localstack:
-	deploy-setup
+	$(MAKE) deploy-setup
 	helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
 	kubectl apply -f manifests/devxpod/deployment-gen.yaml;
+
+exec-ssh-devpod:
+	DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}"); \
+	kubectl exec -it $$DEV_POD_NAME -n ls$(NS_NUM) -- /bin/bash;
 
 deploy-cleanup:
 	helm uninstall localstack --namespace ls$(NS_NUM)
 	kubectl delete namespace ls$(NS_NUM)
 
-exec-ssh-devpod:
-	DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}")
-	kubectl exec -it $(DEV_POD_NAME) -n ls$(NS_NUM) -- /bin/bash;
