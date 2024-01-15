@@ -29,8 +29,8 @@ aws-setup-cluster:
 aws-cleanup-cluster:
 	eksctl delete fargateprofile \
 		--cluster $(CLUSTER_NAME) \
-		--name ls-fargate-profile$(NS_NUM)
-	eksctl delete cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION)
+		--name ls-fargate-profile$(NS_NUM);
+	eksctl delete cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION);
 
 ######################
 # Solution 2 targets #
@@ -38,7 +38,8 @@ aws-cleanup-cluster:
 
 local-setup-cluster:
 	eksctl anywhere create cluster -f clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6;
-	kubectl create namespace ls$(NS_NUM);
+	kubectl --kubeconfig="$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig" create namespace ls$(NS_NUM);
+	echo "Run: export KUBECONFIG=$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig";
 
 local-cleanup-cluster:
 	eksctl anywhere delete cluster -f clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6;
