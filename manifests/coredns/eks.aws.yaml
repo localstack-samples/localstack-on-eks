@@ -17,11 +17,6 @@ data:
         reload
         loadbalance
     }
-    localhost.localstack.cloud:53 {
-            errors
-            cache 5
-            forward . 10.100.0.53
-        }
 kind: ConfigMap
 metadata:
   labels:

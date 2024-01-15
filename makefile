@@ -3,8 +3,8 @@ SHELL := /bin/bash
 -include .env
 -include .env-local
 
-.PHONY: gen-coredns aws-setup-cluster aws-deploy-all-ns aws-deploy-ls aws-ssh-devpod0 aws-ssh-devpod1 aws-cleanup-ns0 aws-cleanup-ns1 aws-cleanup-cluster aws-setup-ns0 aws-setup-ns1 aws-setup-nss
 
+.PHONY: gen-coredns aws-setup-cluster aws-deploy-all-ns aws-deploy-ls aws-ssh-devpod aws-cleanup-ns aws-cleanup-cluster aws-setup-ns0 aws-setup-ns1 aws-setup-nss
 aws-setup-cluster:
 	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.28 --fargate;
 
@@ -12,7 +12,7 @@ gen-coredns:
 	kubectl get -n kube-system configmaps coredns -o yaml | \
 	yq  '.data.Corefile = (.data.Corefile + "\nlocalstack$(NS_NUM):53 {\n    errors\n    cache 5\n    forward . 10.100.$(NS_NUM).53\n}")' | \
 	yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
-	>> coredns-tmp.yaml
+	> coredns-tmp.yaml
 
 aws-setup-ns: gen-coredns
 	kubectl create namespace ls$(NS_NUM);
@@ -40,8 +40,13 @@ aws-ssh-devpod: DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n ls$(NS_N
 aws-ssh-devpod:
 	kubectl exec -it $(DEV_POD_NAME) -n ls$(NS_NUM) -- /bin/bash;
 
+# Set target specific variable DEV_POD_NAME to be used in that target
+aws-ssh-lspod: LS_POD_NAME=$(shell kubectl get pods -l app.kubernetes.io/name=localstack$(NS_NUM) -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}")
+aws-ssh-lspod:
+	kubectl exec -it $(LS_POD_NAME) -n ls$(NS_NUM) -- /bin/bash;
 
-aws-cleanup:
+
+aws-cleanup-ns:
 	helm uninstall localstack --namespace ls$(NS_NUM)
 	kubectl delete namespace ls$(NS_NUM)
 	eksctl delete fargateprofile \
@@ -50,3 +55,21 @@ aws-cleanup:
 
 aws-cleanup-cluster:
 	eksctl delete cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION)
+
+eksany-create-cluster:
+	eksctl anywhere create cluster -f ./clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6
+
+
+eksany-gen-coredns: gen-coredns
+
+eksany-setup-ns: gen-coredns
+	kubectl create namespace ls$(NS_NUM);
+	kubectl apply -f coredns-tmp.yaml;
+	kubectl rollout restart -n kube-system deployment/coredns;
+	envsubst < manifests/coredns/ls-dns-template.yaml > manifests/coredns/ls-dns-gen.yaml
+	kubectl apply -f manifests/coredns/ls-dns-gen.yaml;
+
+eksany-deploy-ls: aws-deploy-ls
+
+eksany-ssh-devpod: aws-ssh-devpod
+eksany-ssh-lspod: aws-ssh-lspod

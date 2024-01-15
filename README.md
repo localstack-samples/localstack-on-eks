@@ -118,61 +118,12 @@ make reset-ls
 ```
 
 **Cleanup EKS Cluster**
-
+make aws-cleanup-ns NS_NUM=<your namespace number>
 ```shell
-make aws-cleanup-nss
+make aws-cleanup-ns NS_NUM=0
 make aws-cleanup-cluster
 ```
 
-### Solution-1 Detailed Steps
-
-#### Source the .env file
-```shell
-source .env
-```
-
-#### Create EKS Cluster
-
-This will create a new EKS cluster with a Fargate backend in your AWS Account, along with a new VPC.
-```shell
-eksctl create cluster --name $CLUSTER_NAME --region $CLUSTER_REGION --version 1.28 --fargate
-```
-
-#### Create a K8S namespace
-
-```shell
-kubectl create namespace ls0
-```
-
-#### Create an EKS Fargate Profile
-
-```shell
-eksctl create fargateprofile \
-    --cluster $CLUSTER_NAME \
-    --name ls-fargate-profile \
-    --namespace ls0 
-```
-
-#### Set up cluster DNS
-
-Apply patch to CoreDNS to leverage Localstack's DNS instead for all `localhost.localstack.cloud` requests.
-
-```shell
-kubectl apply -f manifests/coredns/eks.aws.yaml
-kubectl rollout restart -n kube-system deployment/coredns
-```
-
-Get CoreDNS config by running the following:
-
-```shell
-kubectl get -n kube-system configmaps coredns -o yaml
-```
-
-Make Localstack's DNS discoverable by creating the following service:
-
-```shell
-kubectl apply -f manifests/coredns/ls-dns.yaml
-```
 
 ### Solution-2
 
@@ -191,8 +142,7 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 The following cluster creating takes about 5 minutes.
 
 ```shell
-export CLUSTER_NAME=eks-cluster
-eksctl anywhere create cluster -f clusters/eks-anywhere/$CLUSTER_NAME.yaml -v 6
+make eksany-create-cluster
 ```
 
 Export kubeconfig config:

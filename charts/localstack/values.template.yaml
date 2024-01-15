@@ -27,7 +27,7 @@ extraEnvVars:
     value: "localstack${NS_NUM}:4566"
 
 # enable debugging
-#debug: true
+debug: true
 
 lambda:
   # The lambda runtime executor.
