@@ -106,7 +106,7 @@ Let's create the AWS cluster using EKS Anywhere locally. This blueprint builds n
 ```shell
 make local-setup-cluster NS_NUM=0
 
-# Create the namespace and the Fargate profile.
+# Create the namespace.
 make local-bootstrap NS_NUM=0
 # Apply CoreDNS patch so that CoreDNS points to the Localstack service.
 make patch-coredns NS_NUM=0
