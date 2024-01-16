@@ -65,7 +65,7 @@ local-deploy-cleanup: deploy-cleanup
 patch-coredns:
 	# Patch CoreDNS to forward requests to localstack
 	kubectl get -n kube-system configmaps coredns -o yaml | \
-		yq  '.data.Corefile = (.data.Corefile + "\nlocalstack$(NS_NUM):53 {\n    errors\n    cache 5\n    forward . 10.100.$(NS_NUM).53\n}")' | \
+		yq  '.data.Corefile = (.data.Corefile + "\nlocalstack$(NS_NUM).local:53 {\n    errors\n    cache 5\n    forward . 10.100.$(NS_NUM).53\n}")' | \
 		yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' | \
 		kubectl apply -f -;
 	
