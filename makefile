@@ -3,8 +3,8 @@ SHELL := /bin/bash
 -include .env
 -include .env-local
 
+.PHONY: gen-coredns cleanup-ns aws-setup-cluster aws-deploy-all-ns aws-deploy-ls aws-ssh-devpod aws-cleanup-ns aws-cleanup-cluster aws-setup-ns0 aws-setup-ns1 aws-setup-nss
 
-.PHONY: gen-coredns aws-setup-cluster aws-deploy-all-ns aws-deploy-ls aws-ssh-devpod aws-cleanup-ns aws-cleanup-cluster aws-setup-ns0 aws-setup-ns1 aws-setup-nss
 aws-setup-cluster:
 	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.28 --fargate
 
@@ -13,6 +13,19 @@ gen-coredns:
 	yq  '.data.Corefile = (.data.Corefile + "\nlocalstack$(NS_NUM):53 {\n    errors\n    cache 5\n    forward . 10.100.$(NS_NUM).53\n}")' | \
 	yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
 	> coredns-tmp.yaml
+
+# Delete the namespace
+# Remove localstack${NS_NUM}:53 from the Coredns Corefile
+# Apply the changes to Coredns
+cleanup-ns:
+	kubectl delete namespace ls$(NS_NUM);
+	kubectl get -n kube-system configmaps coredns -o json | \
+	jq '.data.Corefile |= gsub("(?s)localstack${NS_NUM}:53[\\s\\S]*?}"; "")' | \
+	yq eval -p=json - | \
+	yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
+	> coredns-tmp.yaml;
+	kubectl apply -f coredns-tmp.yaml;
+	kubectl rollout restart -n kube-system deployment/coredns;
 
 aws-setup-ns: gen-coredns
 	kubectl create namespace ls$(NS_NUM);
@@ -47,9 +60,7 @@ aws-ssh-lspod:
 	kubectl exec -it $(LS_POD_NAME) -n ls$(NS_NUM) -- /bin/bash;
 
 
-aws-cleanup-ns:
-	helm uninstall localstack --namespace ls$(NS_NUM)
-	kubectl delete namespace ls$(NS_NUM)
+aws-cleanup-ns: cleanup-ns
 	eksctl delete fargateprofile \
 		--cluster $(CLUSTER_NAME) \
 		--name ls-fargate-profile$(NS_NUM)
@@ -79,8 +90,7 @@ eksany-ssh-lspod: aws-ssh-lspod
 eksany-cleanup-cluster:
 	eksctl anywhere delete cluster $(CLUSTER_NAME) -f ./clusters/eks-anywhere/$(CLUSTER_NAME).yaml
 
-eksany-cleanup-ns:
-	kubectl delete namespace ls$(NS_NUM)
+eksany-cleanup-ns: cleanup-ns
 
 eksany-lslogs: LS_POD_NAME=$(shell kubectl get pods -l app.kubernetes.io/name=localstack -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}")
 eksany-lslogs:
