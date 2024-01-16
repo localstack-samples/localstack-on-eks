@@ -12,7 +12,7 @@ SHELL := /bin/bash
 	deploy-setup \
 	deploy-localstack \
 	deploy-cleanup \
-	exec-ssh-devpod
+	exec-devpod-interactive
 
 ######################
 # Solution 1 targets #
@@ -87,9 +87,17 @@ deploy-localstack:
 	helm install localstack ../helm-charts/charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
 	kubectl apply -f manifests/devxpod/deployment-gen.yaml;
 
-exec-ssh-devpod:
+exec-devpod-interactive:
 	DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}"); \
 	kubectl exec -it $$DEV_POD_NAME -n ls$(NS_NUM) -- /bin/bash;
+
+exec-devpod-noninteractive:
+	# Check if CMD is set
+ifndef CMD
+	$(error CMD is not set)
+endif
+	DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}"); \
+	kubectl exec -it $$DEV_POD_NAME -n ls$(NS_NUM) -- /bin/bash -c "$(CMD)";
 
 deploy-cleanup:
 	helm uninstall localstack --namespace ls$(NS_NUM);

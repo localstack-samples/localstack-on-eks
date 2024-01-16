@@ -66,7 +66,7 @@ make deploy-setup NS_NUM=0
 make deploy-localstack NS_NUM=0
 
 # Exec into dev environment
-make exec-ssh-devpod NS_NUM=0
+make exec-devpod-interactive NS_NUM=0
 ```
 
 Once inside the DevPod environment, let's clone our Localstack sample project:
@@ -116,7 +116,7 @@ make deploy-setup NS_NUM=0
 make deploy-localstack NS_NUM=0
 
 # Exec into dev environment
-make exec-ssh-devpod NS_NUM=0
+make exec-devpod-interactive NS_NUM=0
 ```
 
 Once inside the DevPod environment, let's clone our Localstack sample project:
