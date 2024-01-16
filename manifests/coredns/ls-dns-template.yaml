@@ -5,7 +5,8 @@ metadata:
   namespace: ls${NS_NUM}
 spec:
   selector:
-    app.kubernetes.io/name: localstack${NS_NUM}
+    app.kubernetes.io/instance: localstack
+    app.kubernetes.io/name: localstack
   clusterIP: 10.100.${NS_NUM}.53
   ports:
     - name: dnstcp${NS_NUM}

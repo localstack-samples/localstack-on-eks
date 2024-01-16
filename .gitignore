@@ -9,3 +9,5 @@ coredns-tmp.yaml
 coredns.yaml
 ls-dns-gen.yaml
 deployment-gen.yaml
+lseks
+eksa-cli-logs
