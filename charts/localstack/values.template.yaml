@@ -40,11 +40,6 @@ lambda:
     runAsUser: 1000
     fsGroup: 1000
 
-resources:
-  requests:
-    cpu: 2000m
-    memory: 8Gi
-
 readinessProbe:
   initialDelaySeconds: 60
 

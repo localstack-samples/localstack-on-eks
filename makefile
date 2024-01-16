@@ -19,12 +19,7 @@ SHELL := /bin/bash
 ######################
 
 aws-setup-cluster:
-	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.28 --fargate;
-	kubectl create namespace ls$(NS_NUM);
-	eksctl create fargateprofile \
-		--cluster $(CLUSTER_NAME) \
-		--name ls-fargate-profile$(NS_NUM) \
-		--namespace ls$(NS_NUM);
+	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.28 --fargate
 
 aws-cleanup-cluster:
 	eksctl delete fargateprofile \
@@ -32,22 +27,40 @@ aws-cleanup-cluster:
 		--name ls-fargate-profile$(NS_NUM);
 	eksctl delete cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION);
 
+aws-bootstrap:
+	kubectl create namespace ls$(NS_NUM);
+	eksctl create fargateprofile \
+		--cluster $(CLUSTER_NAME) \
+		--name ls-fargate-profile$(NS_NUM) \
+		--namespace ls$(NS_NUM);
+
+aws-deploy-cleanup:
+	$(MAKE) deploy-cleanup
+	eksctl delete fargateprofile \
+		--cluster $(CLUSTER_NAME) \
+		--name ls-fargate-profile$(NS_NUM);
+
 ######################
 # Solution 2 targets #
 ######################
 
 local-setup-cluster:
 	eksctl anywhere create cluster -f clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6;
-	kubectl --kubeconfig="$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig" create namespace ls$(NS_NUM);
 	echo "Run: export KUBECONFIG=$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig";
 
 local-cleanup-cluster:
 	eksctl anywhere delete cluster -f clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6;
 	rm -r $(CLUSTER_NAME);
 
+local-bootstrap:
+	kubectl create namespace ls$(NS_NUM)
+
+local-deploy-cleanup: deploy-cleanup
+
 ###################################
 # Solution 1 & Solution 2 targets #
 ###################################
+
 
 patch-coredns:
 	# Patch CoreDNS to forward requests to localstack
@@ -70,7 +83,8 @@ deploy-setup:
 
 deploy-localstack:
 	$(MAKE) deploy-setup
-	helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
+	# helm install localstack helm-charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
+	helm install localstack ../helm-charts/charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
 	kubectl apply -f manifests/devxpod/deployment-gen.yaml;
 
 exec-ssh-devpod:
@@ -78,6 +92,5 @@ exec-ssh-devpod:
 	kubectl exec -it $$DEV_POD_NAME -n ls$(NS_NUM) -- /bin/bash;
 
 deploy-cleanup:
-	helm uninstall localstack --namespace ls$(NS_NUM)
-	kubectl delete namespace ls$(NS_NUM)
-
+	helm uninstall localstack --namespace ls$(NS_NUM);
+	kubectl delete namespace ls$(NS_NUM);
