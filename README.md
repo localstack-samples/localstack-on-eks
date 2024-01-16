@@ -55,30 +55,17 @@ to choose a namespace number for the following targets.
 
 ```shell
 make aws-setup-cluster NS_NUM=0
-```
 
-Create the namespace and the Fargate profile:
-
-```shell
+# Create the namespace and the Fargate profile.
 make aws-bootstrap NS_NUM=0
-```
-
-Apply the CoreDNS patch so that CoreDNS also points to the Localstack service:
-
-```shell
+# Apply CoreDNS patch so that CoreDNS points to the Localstack service.
 make patch-coredns NS_NUM=0
-```
 
-Let's generate the manifests and then apply Localstack and the DevPod deployments:
-
-```shell
+# Generate manifests and apply Localstack/DevPod deployments.
 make deploy-setup NS_NUM=0
 make deploy-localstack NS_NUM=0
-```
 
-Let's exec into our DevPod environment in our `ls0` namespace by running:
-
-```shell
+# Exec into dev environment
 make exec-ssh-devpod NS_NUM=0
 ```
 
@@ -114,35 +101,21 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 
 #### Solution-2 Steps
 
-Let's create the AWS cluster using EKS Anywhere locally. This blueprint builds namespaces in the format of `ls<NS_NUM>`. So, we're going
-to choose a namespace number for the following targets.
+Let's create the AWS cluster using EKS Anywhere locally. This blueprint builds namespaces in the format of `ls<NS_NUM>`. So, we're going to choose a namespace number for the following targets.
 
 ```shell
 make local-setup-cluster NS_NUM=0
-```
 
-Create the namespace and the Fargate profile:
-
-```shell
+# Create the namespace and the Fargate profile.
 make local-bootstrap NS_NUM=0
-```
-
-Apply the CoreDNS patch so that CoreDNS also points to the Localstack service:
-
-```shell
+# Apply CoreDNS patch so that CoreDNS points to the Localstack service.
 make patch-coredns NS_NUM=0
-```
 
-Let's generate the manifests and then apply Localstack and the DevPod deployments:
-
-```shell
+# Generate manifests and apply Localstack/DevPod deployments.
 make deploy-setup NS_NUM=0
 make deploy-localstack NS_NUM=0
-```
 
-Let's exec into our DevPod environment in our `ls0` namespace by running:
-
-```shell
+# Exec into dev environment
 make exec-ssh-devpod NS_NUM=0
 ```
 
