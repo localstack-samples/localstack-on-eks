@@ -6,7 +6,7 @@ SHELL := /bin/bash
 
 .PHONY: gen-coredns aws-setup-cluster aws-deploy-all-ns aws-deploy-ls aws-ssh-devpod aws-cleanup-ns aws-cleanup-cluster aws-setup-ns0 aws-setup-ns1 aws-setup-nss
 aws-setup-cluster:
-	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.28 --fargate;
+	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.28 --fargate
 
 gen-coredns:
 	kubectl get -n kube-system configmaps coredns -o yaml | \
@@ -29,11 +29,12 @@ aws-deploy-setup: export NODE_PORT=$(shell expr 31566 + ${NS_NUM})
 aws-deploy-setup:
 	envsubst < charts/localstack/values.template.yaml > charts/localstack/values.yaml;
 	envsubst < manifests/devxpod/deployment-template.yaml > manifests/devxpod/deployment-gen.yaml;
-	helm repo add localstack-charts https://localstack.github.io/helm-charts;
+	#helm repo add localstack-charts https://localstack.github.io/helm-charts;
 
 aws-deploy-ls: aws-deploy-setup
-	helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
-	#kubectl apply -f manifests/devxpod/deployment-gen.yaml;
+	#helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
+	helm install localstack ../helm-charts/charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
+	kubectl apply -f manifests/devxpod/deployment-gen.yaml;
 
 # Set target specific variable DEV_POD_NAME to be used in that target
 aws-ssh-devpod: DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}")

@@ -55,10 +55,10 @@ Put these contents in it
 export LOCALSTACK_AUTH_TOKEN=<your LocalStack auth token>
 ```
 
-### Solution-1 Quickstart
+### Solution-1
 You can do the quickstart that automates commands, or you can do the detailed instructions below this section.
 
-#### Solution-1 Quickstart Steps
+#### Solution-1 Steps
 
 **Setup Cluster and CoreDNS**
 This blueprint builds namespaces in the format of `ls<NS_NUM>`. So, we're going

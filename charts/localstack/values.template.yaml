@@ -7,7 +7,7 @@ command:
   - -c
   - echo 'ulimit -Sn 32767' >> /root/.bashrc && echo 'ulimit -Su 16383' >> /root/.bashrc && docker-entrypoint.sh
 
-dnsPolicy: "Default"
+dnsPolicy: "${DNS_POLICY}"
 nameOverride: "localstack"
 fullnameOverride: "localstack"
 
