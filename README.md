@@ -15,6 +15,7 @@ solution testing platform.
 
 ### LocalStack on AWS EKS Fargate
 Multiple namespaces isolate testing of different solutions.
+
 ![LSonEKS](./docs/design-ls-on-aws-eks.drawio.png "LSonEKS")
 
 ### LocalStack on Engineer's Laptop with EKS Anywhere
@@ -48,9 +49,9 @@ This solution has the EKS cluster deployed on AWS.
 - [install eksctl](https://eksctl.io/installation/)
 
 #### Get credentials to your AWS account
+However you get and set your credentials, set them.
 
-#### Create a file named `.env-local`
-Put these contents in it
+Put these contents in a file named `.env-local`
 ```shell
 export LOCALSTACK_AUTH_TOKEN=<your LocalStack auth token>
 ```
