@@ -6,11 +6,11 @@ SHELL := /bin/bash
 
 .PHONY: gen-coredns aws-setup-cluster aws-deploy-all-ns aws-deploy-ls aws-ssh-devpod aws-cleanup-ns aws-cleanup-cluster aws-setup-ns0 aws-setup-ns1 aws-setup-nss
 aws-setup-cluster:
-	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.28 --fargate
+	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.27 --fargate
 
 gen-coredns:
 	kubectl get -n kube-system configmaps coredns -o yaml | \
-	yq  '.data.Corefile = (.data.Corefile + "\nlocalstack$(NS_NUM).local:53 {\n    errors\n    cache 5\n    forward . 10.100.$(NS_NUM).53\n}")' | \
+	yq  '.data.Corefile = (.data.Corefile + "\nlocalstack$(NS_NUM):53 {\n    errors\n    cache 5\n    forward . 10.100.$(NS_NUM).53\n}")' | \
 	yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
 	> coredns-tmp.yaml
 
