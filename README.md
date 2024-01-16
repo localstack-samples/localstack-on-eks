@@ -55,9 +55,6 @@ Put these contents in it
 export LOCALSTACK_AUTH_TOKEN=<your LocalStack auth token>
 ```
 
-### Solution-1
-You can do the quickstart that automates commands, or you can do the detailed instructions below this section.
-
 #### Solution-1 Steps
 
 **Setup Cluster and CoreDNS**
@@ -139,136 +136,30 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 
 #### Create EKS anywhere cluster
 
-The following cluster creating takes about 5 minutes.
+Creating the cluster takes a couple minutes. Select a K8S Namespace number and supply it as an argument.
 
 ```shell
-make eksany-create-cluster
+make eksany-create-cluster NS_NUM=0
 ```
 
-Export kubeconfig config:
+Create Namespace and setup Coredns
+```shell
+make eksany-setup-ns NS_NUM=0
+```
+
+#### Deploy LocalStack and DevPod
 
 ```shell
-export KUBECONFIG=${PWD}/${CLUSTER_NAME}/${CLUSTER_NAME}-eks-a-cluster.kubeconfig
+make eksany-deploy-ls NS_NUM=0
 ```
 
-#### Create a K8S namespace
-
+#### Run Test
+Get a shell on the DevPod
 ```shell
-kubectl create namespace ls0
+make eksany-ssh-devpod NS_NUM=0
 ```
 
-#### Set up cluster DNS
-
-Apply patch to CoreDNS to leverage Localstack's DNS instead for all `localhost.localstack.cloud` requests.
-
-```shell
-kubectl apply -f manifests/coredns/eks.anywhere.yaml
-kubectl rollout restart -n kube-system deployment/coredns
-```
-
-Get CoreDNS config by running the following:
-
-```shell
-kubectl get -n kube-system configmaps coredns -o yaml
-```
-
-Make Localstack's DNS discoverable by creating the following service:
-
-```shell
-kubectl apply -f manifests/coredns/ls-dns.yaml
-```
-
-### Deploy Apps (Solution-1 & Solution-2)
-
-All following instructions are identical on both solutions (1 & 2).
-
-#### Deploy sample application (optional)
-
-https://docs.aws.amazon.com/eks/latest/userguide/sample-deployment.html
-
-```shell
-kubectl apply -f manifests/sample-app
-```
-
-#### Inspect deployed service
-
-List the deployed services:
-
-```shell
-kubectl get all -n ls0
-```
-
-View details of the deployed service:
-
-```shell
-kubectl -n ls0 describe service eks-sample-linux-service
-```
-
-Run a shell on a pod.
-
-```shell
-export RANDOM_POD_NAME=$(kubectl get pods -l "app=eks-sample-linux-app" -n ls0 -o jsonpath="{.items[0].metadata.name}")
-kubectl exec -it $RANDOM_POD_NAME -n ls0 -- /bin/bash
-```
-
-Finally, from inside the pod, curl the endpoint by using the service name:
-
-```shell
-curl -i eks-sample-linux-service
-```
-
-#### Update helm config with LocalStack Pro
-
-You can use this chart with LocalStack Pro by:
-
-- Changing the image to localstack/localstack-pro.
-- Providing your Auth Token as an environment variable.
-
-Let's generate our `values.yaml` helm spec by substituting the image name and the auth token using the [charts/localstack/values.template.yaml](charts/localstack/values.template.yaml):
-
-```shell
-envsubst < charts/localstack/values.template.yaml > charts/localstack/values.yaml
-```
-
-#### Deploy LocalStack
-
-And you can use these values when installing the chart in your cluster:
-
-```shell
-helm repo add localstack-charts https://localstack.github.io/helm-charts
-helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace ls0
-```
-
-**Warning: you temporarily need to use the helm chart provided on branch `nameserver-config`. `git clone -b nameserver-config https://github.com/localstack/helm-charts/tree/nameserver-config` in a different directory `$LOCALSTACK_CHARTS_DIR`. Following that, run `helm install localstack ./$LOCALSTACK_CHARTS_DIR/charts/localstack -f charts/localstack/values.yaml --namespace ls0`**.
-
-#### Get LocalStack container logs
-
-Example
-
-```shell
-export LS_POD_NAME=$(kubectl get pods -l "app.kubernetes.io/name=localstack" -n ls0 -o jsonpath="{.items[0].metadata.name}")
-kubectl logs $LS_POD_NAME -n $LS_K8S_NAMESPACE
-```
-
-#### Install devpod GDC
-```shell
-kubectl apply -f manifests/devxpod/deployment.yaml
-```
-
-## Test (Solution-1 & Solution-2)
-
-Now EKS is deployed with a unique namespace. LocalStack and the DevPod are both running.
-
-After opening the shell, the command that follow are in the DevPod.
-
-```shell
-export DEV_POD_NAME=$(kubectl get pods -l "app=devxpod" -n $LS_K8S_NAMESPACE -o jsonpath="{.items[0].metadata.name}")
-kubectl exec -it $DEV_POD_NAME -n $LS_K8S_NAMESPACE -- /bin/bash
-```
-
-Clone the repos we're testing. In an actual scenario, you might clone multiple repos, and/or restore LocalStack
-CloudPod state before running tests.
-
+**Clone solution repo and test**
 ```shell
 git clone https://github.com/localstack-samples/lambda-ddb.git
 ```
@@ -295,6 +186,41 @@ Test the deploy AWS CDK solution.
 
 ```shell
 make integ-awscdk-test
+```
+
+#### Setup Second Namespace
+To setup a second namespace and test in it, simply do this. We'll use namespace number 2.
+The cluster already exists so we'll just add another namespace to it,
+deploy LocalStack and the DevPod, login to the DevPod, and test a repo.
+```shell
+make eksany-setup-ns NS_NUM=2
+make eksany-deploy-ls NS_NUM=2
+make eksany-ssh-devpod NS_NUM=2
+git clone https://github.com/localstack-samples/lambda-ddb.git
+cd lambda-ddb
+make integ-awscdk-bootstrap
+make integ-awscdk-deploy
+make integ-awscdk-test
+```
+**Cleanup Namespace 2**
+```shell
+make eksany-cleanup-ns NS_NUM=2
+```
+
+### Misc Commands
+**Edit Coredns config directly**
+```shell
+kubectl edit -n kube-system configmaps coredns
+```
+
+**List resources in namespace ls0**
+```shell
+kubectl get all -n ls0
+```
+
+**Get LocalStack container logs**
+```shell
+make eksany-lslogs NS_NUM=0
 ```
 
 ### Cleanup Solution-1

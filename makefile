@@ -6,7 +6,7 @@ SHELL := /bin/bash
 
 .PHONY: gen-coredns aws-setup-cluster aws-deploy-all-ns aws-deploy-ls aws-ssh-devpod aws-cleanup-ns aws-cleanup-cluster aws-setup-ns0 aws-setup-ns1 aws-setup-nss
 aws-setup-cluster:
-	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.27 --fargate
+	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.28 --fargate
 
 gen-coredns:
 	kubectl get -n kube-system configmaps coredns -o yaml | \
@@ -58,7 +58,7 @@ aws-cleanup-cluster:
 	eksctl delete cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION)
 
 eksany-create-cluster:
-	eksctl anywhere create cluster -f ./clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6
+	eksctl anywhere create cluster -f ./clusters/eks-anywhere/$(CLUSTER_NAME).yaml
 
 eksany-setup-coredns: gen-coredns
 	kubectl apply -f coredns-tmp.yaml;
@@ -77,7 +77,10 @@ eksany-ssh-devpod: aws-ssh-devpod
 eksany-ssh-lspod: aws-ssh-lspod
 
 eksany-cleanup-cluster:
-	eksctl anywhere delete cluster $(CLUSTER_NAME) -f ./clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6
+	eksctl anywhere delete cluster $(CLUSTER_NAME) -f ./clusters/eks-anywhere/$(CLUSTER_NAME).yaml
+
+eksany-cleanup-ns:
+	kubectl delete namespace ls$(NS_NUM)
 
 eksany-lslogs: LS_POD_NAME=$(shell kubectl get pods -l app.kubernetes.io/name=localstack -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}")
 eksany-lslogs:

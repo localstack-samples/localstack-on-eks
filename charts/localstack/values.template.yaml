@@ -43,11 +43,11 @@ lambda:
 
 resources:
   requests:
-    cpu: 2000m
-    memory: 8Gi
+    cpu: 1
+    memory: 2Gi
 
 readinessProbe:
-  initialDelaySeconds: 60
+  initialDelaySeconds: 15
 
 livenessProbe:
-  initialDelaySeconds: 60
+  initialDelaySeconds: 15
