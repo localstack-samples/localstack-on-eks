@@ -138,10 +138,11 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 #### Create EKS anywhere cluster
 
 Creating the cluster takes a couple minutes. Select a K8S Namespace number and supply it as an argument.
-
 ```shell
 make eksany-create-cluster NS_NUM=0
 ```
+
+![EKSAClusterDeploy](./docs/eksa-deploy-cluster.png "EKSAClusterDeploy")
 
 Create Namespace and setup Coredns
 ```shell
