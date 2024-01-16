@@ -1,4 +1,4 @@
-# 🌐 Overview
+# 🌐 LocalStack on EKS in AWS and EKS Anywhere on your Laptop
 
 This blueprint has two solutions:
 
