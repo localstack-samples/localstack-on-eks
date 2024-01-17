@@ -7,9 +7,9 @@ command:
   - -c
   - echo 'ulimit -Sn 32767' >> /root/.bashrc && echo 'ulimit -Su 16383' >> /root/.bashrc && docker-entrypoint.sh
 
+dnsPolicy: "${DNS_POLICY}"
 nameOverride: "localstack"
 fullnameOverride: "localstack"
-dnsPolicy: "${DNS_POLICY}"
 
 service:
   clusterIP: "10.100.${NS_NUM}.42"
@@ -28,7 +28,7 @@ extraEnvVars:
     value: "localstack${NS_NUM}:4566"
 
 # enable debugging
-#debug: true
+debug: true
 
 lambda:
   # The lambda runtime executor.
@@ -41,8 +41,13 @@ lambda:
     runAsUser: 1000
     fsGroup: 1000
 
+resources:
+  requests:
+    cpu: 1
+    memory: 2Gi
+
 readinessProbe:
-  initialDelaySeconds: 60
+  initialDelaySeconds: 15
 
 livenessProbe:
-  initialDelaySeconds: 60
+  initialDelaySeconds: 15

@@ -31,8 +31,8 @@ spec:
         imagePullPolicy: IfNotPresent
         resources:
           requests:
-            memory: "4Gi"
-            cpu: "2"
+            memory: "2Gi"
+            cpu: "1"
         env:
           - name: NS_LOCALSTACK_HOST
             value: localstack${NS_NUM}

@@ -1,7 +1,11 @@
 apiVersion: anywhere.eks.amazonaws.com/v1alpha1
 kind: Cluster
 metadata:
+<<<<<<<< HEAD:clusters/eks-anywhere/eks-cluster.yaml
   name: eks-cluster
+========
+  name: lseks
+>>>>>>>> main:clusters/eks-anywhere/lseks.yaml
 spec:
   clusterNetwork:
     cniConfig:
@@ -16,12 +20,20 @@ spec:
     count: 1
   datacenterRef:
     kind: DockerDatacenterConfig
+<<<<<<<< HEAD:clusters/eks-anywhere/eks-cluster.yaml
     name: eks-cluster
+========
+    name: lseks
+>>>>>>>> main:clusters/eks-anywhere/lseks.yaml
   externalEtcdConfiguration:
     count: 1
   kubernetesVersion: "1.28"
   managementCluster:
+<<<<<<<< HEAD:clusters/eks-anywhere/eks-cluster.yaml
     name: eks-cluster
+========
+    name: lseks
+>>>>>>>> main:clusters/eks-anywhere/lseks.yaml
   workerNodeGroupConfigurations:
   - count: 1
     name: md-0
@@ -30,7 +42,11 @@ spec:
 apiVersion: anywhere.eks.amazonaws.com/v1alpha1
 kind: DockerDatacenterConfig
 metadata:
+<<<<<<<< HEAD:clusters/eks-anywhere/eks-cluster.yaml
   name: eks-cluster
+========
+  name: lseks
+>>>>>>>> main:clusters/eks-anywhere/lseks.yaml
 spec: {}
 
 ---
