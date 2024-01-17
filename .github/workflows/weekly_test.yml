@@ -82,7 +82,7 @@ jobs:
         unset LOCALSTACK_API_KEY
 
         source .env
-        export KUBECONFIG=$(PWD)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig
+        export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
 
         # Set up EKS anywhere.
         make local-setup-cluster NS_NUM=$NS_NUM
@@ -95,7 +95,7 @@ jobs:
         NS_NUM: "0"
       run: |
         source .env
-        export KUBECONFIG=$(PWD)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig
+        export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
         make deploy-setup NS_NUM=$NS_NUM
         make deploy-localstack NS_NUM=$NS_NUM
     
@@ -104,7 +104,7 @@ jobs:
         NS_NUM: "0"
       run: |
         source .env
-        export KUBECONFIG=$(PWD)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig
+        export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
         DEV_POD_NAME=$(kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}")
         kubectl cp .github/workflows/test.sh ls$(NS_NUM)/$DEV_POD_NAME:/tmp/test.sh -n ls$(NS_NUM)
 
@@ -113,6 +113,6 @@ jobs:
         NS_NUM: "0"
       run: |
         source .env
-        export KUBECONFIG=$(PWD)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig
+        export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
         run-one-until-success make exec-devpod-noninteractive CMD="ls"
         make exec-devpod-noninteractive CMD="chmod +x /tmp/test.sh && /tmp/test.sh"
