@@ -1,0 +1,118 @@
+name: Weekly Test of Localstack deploy on EKS
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Run every Monday at 9:00 UTC
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '*'
+
+      
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          run-one \
+          make
+
+        ARCH=$(uname -m)
+        if [ "$ARCH" = "x86_64" ]; then
+          ARCH="amd64"
+        elif [ "$ARCH" = "aarch64" ]; then
+          ARCH="arm64"
+        elif [ "$ARCH" = "armv6l" ]; then
+          ARCH="armv6"
+        elif [ "$ARCH" = "armv7l" ]; then
+          ARCH="armv7"
+        fi
+
+        # Install yq
+        sudo wget -O /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$ARCH
+        sudo chmod a+x /usr/local/bin/yq
+
+        # Install eksctl.
+        PLATFORM=$(uname -s)_$ARCH
+        curl -sLO "https://github.com/eksctl-io/eksctl/releases/download/v0.167.0/eksctl_$PLATFORM.tar.gz"
+        curl -sL "https://github.com/eksctl-io/eksctl/releases/download/v0.167.0/eksctl_checksums.txt" | grep $PLATFORM | sha256sum --check
+        tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
+        sudo mv /tmp/eksctl /usr/local/bin
+
+        # Install eksctl anywhere plugin.
+        RELEASE_VERSION=v0.18.3
+        EKS_ANYWHERE_TARBALL_URL=$(curl https://anywhere-assets.eks.amazonaws.com/releases/eks-a/manifest.yaml --silent --location | yq ".spec.releases[] | select(.version==\"$RELEASE_VERSION\").eksABinary.$(uname -s | tr A-Z a-z).uri")
+        curl $EKS_ANYWHERE_TARBALL_URL \
+          --silent --location \
+          | tar xz ./eksctl-anywhere
+        sudo install -m 0755 ./eksctl-anywhere /usr/local/bin/eksctl-anywhere
+
+        # Install aws-iam-authenticator.
+        curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.15.10/2020-02-22/bin/linux/$ARCH/aws-iam-authenticator
+        chmod +x ./aws-iam-authenticator
+        sudo mv aws-iam-authenticator /usr/local/bin
+
+        # Install helm.
+        curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+        sudo apt-get install apt-transport-https --yes
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+        sudo apt-get update
+        sudo apt-get install helm
+
+    - name: Setup EKS anywhere
+      env:
+        NS_NUM: "0"
+      run: |
+        # Unset stale org secret.
+        printenv
+        unset LOCALSTACK_API_KEY
+
+        source .env
+        export KUBECONFIG=$(PWD)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig
+
+        # Set up EKS anywhere.
+        make local-setup-cluster NS_NUM=$NS_NUM
+        make local-bootstrap NS_NUM=$NS_NUM
+        make patch-coredns NS_NUM=$NS_NUM
+
+    - name: Deploy Localstack
+      env:
+        LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
+        NS_NUM: "0"
+      run: |
+        source .env
+        export KUBECONFIG=$(PWD)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig
+        make deploy-setup NS_NUM=$NS_NUM
+        make deploy-localstack NS_NUM=$NS_NUM
+    
+    - name: Copy Test Script
+      env:
+        NS_NUM: "0"
+      run: |
+        source .env
+        export KUBECONFIG=$(PWD)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig
+        DEV_POD_NAME=$(kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}")
+        kubectl cp .github/workflows/test.sh ls$(NS_NUM)/$DEV_POD_NAME:/tmp/test.sh -n ls$(NS_NUM)
+
+    - name: Run Test Script
+      env:
+        NS_NUM: "0"
+      run: |
+        source .env
+        export KUBECONFIG=$(PWD)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig
+        run-one-until-success make exec-devpod-noninteractive CMD="ls"
+        make exec-devpod-noninteractive CMD="chmod +x /tmp/test.sh && /tmp/test.sh"
