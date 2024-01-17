@@ -108,6 +108,7 @@ jobs:
       run: |
         source .env
         export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
+        kubectl wait --for=condition=ready pod -l app=devxpod -n ls$NS_NUM --timeout=300s
         DEV_POD_NAME=$(kubectl get pods -l app=devxpod -n ls$NS_NUM -o jsonpath="{.items[0].metadata.name}")
         kubectl cp .github/helpers/test.sh ls$NS_NUM/$DEV_POD_NAME:/tmp/test.sh -n ls$NS_NUM
 
