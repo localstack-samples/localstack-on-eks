@@ -108,8 +108,8 @@ jobs:
       run: |
         source .env
         export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
-        DEV_POD_NAME=$(kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}")
-        kubectl cp .github/workflows/test.sh ls$(NS_NUM)/$DEV_POD_NAME:/tmp/test.sh -n ls$(NS_NUM)
+        DEV_POD_NAME=$(kubectl get pods -l app=devxpod -n ls$NS_NUM -o jsonpath="{.items[0].metadata.name}")
+        kubectl cp .github/workflows/test.sh ls$NS_NUM/$DEV_POD_NAME:/tmp/test.sh -n ls$NS_NUM
 
     - name: Run Test Script
       env:
