@@ -16,6 +16,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    options: "--user root"
     steps:
 
     - name: Checkout code
