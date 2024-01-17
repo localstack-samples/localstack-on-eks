@@ -85,7 +85,7 @@ jobs:
         export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
 
         # Set up EKS anywhere.
-        make local-setup-cluster NS_NUM=$NS_NUM
+        sudo make local-setup-cluster NS_NUM=$NS_NUM
         make local-bootstrap NS_NUM=$NS_NUM
         make patch-coredns NS_NUM=$NS_NUM
 
@@ -116,3 +116,12 @@ jobs:
         export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
         run-one-until-success make exec-devpod-noninteractive CMD="ls"
         make exec-devpod-noninteractive CMD="chmod +x /tmp/test.sh && /tmp/test.sh"
+
+    - name: Cleanup
+      env:
+        NS_NUM: "0"
+      run: |
+        source .env
+        export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
+        make deploy-cleanup NS_NUM=$NS_NUM
+        sudo make local-cleanup-cluster NS_NUM=$NS_NUM
