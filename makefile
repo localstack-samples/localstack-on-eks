@@ -83,8 +83,7 @@ deploy-setup:
 
 deploy-localstack:
 	$(MAKE) deploy-setup
-	# helm install localstack helm-charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
-	helm install localstack ../helm-charts/charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
+	helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
 	kubectl apply -f manifests/devxpod/deployment-gen.yaml;
 
 exec-devpod-interactive:
