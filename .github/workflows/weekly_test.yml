@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:
-      options: "--user root"
+      options: --user root
     steps:
 
     - name: Checkout code
