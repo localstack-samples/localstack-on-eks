@@ -96,7 +96,7 @@ ifndef CMD
 	$(error CMD is not set)
 endif
 	DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}"); \
-	kubectl exec -it $$DEV_POD_NAME -n ls$(NS_NUM) -- /bin/bash -c "$(CMD)";
+	kubectl exec $$DEV_POD_NAME -n ls$(NS_NUM) -- /bin/bash -c "$(CMD)";
 
 deploy-cleanup:
 	helm uninstall localstack --namespace ls$(NS_NUM);
