@@ -119,7 +119,7 @@ jobs:
         source .env
         export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
         run-one-until-success make exec-devpod-noninteractive CMD="ls"
-        make exec-devpod-noninteractive CMD="FORCE_INTERACTIVE=yes bash -c 'source ~/.bashrc && chmod +x /tmp/test.sh && /tmp/test.sh'"
+        make exec-devpod-noninteractive CMD="FORCE_INTERACTIVE=yes CDK_DEPLOY_REQUIRE_APPROVAL=never bash -c 'source ~/.bashrc && chmod +x /tmp/test.sh && /tmp/test.sh'"
 
     - name: Cleanup
       env:
