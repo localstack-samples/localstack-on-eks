@@ -34,7 +34,8 @@ endif
 
 aws-setup-cluster:
 	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.28 --fargate
-	mv ~/.kube/config ~/.kube/config.bak
+	mkdir -p ~/.kube
+	mv ~/.kube/config ~/.kube/config.bak || true
 	cp "$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig" ~/.kube/config
 
 
@@ -64,7 +65,8 @@ aws-deploy-cleanup:
 
 local-setup-cluster:
 	eksctl anywhere create cluster -f clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6;
-	mv ~/.kube/config ~/.kube/config.bak
+	mkdir -p ~/.kube
+	mv ~/.kube/config ~/.kube/config.bak || true
 	cp "$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig" ~/.kube/config
 
 local-cleanup-cluster:
