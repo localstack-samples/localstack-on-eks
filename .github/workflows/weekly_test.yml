@@ -85,7 +85,7 @@ jobs:
         export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
 
         # Set up EKS anywhere.
-        sudo make local-setup-cluster NS_NUM=$NS_NUM
+        sudo make local-setup-cluster
         sudo chmod 755 $KUBECONFIG
 
         # Apply required patches.
@@ -118,8 +118,8 @@ jobs:
       run: |
         source .env
         export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
-        run-one-until-success make exec-devpod-noninteractive CMD="ls"
-        make exec-devpod-noninteractive CMD="FORCE_INTERACTIVE=yes bash -c 'source ~/.bashrc && chmod +x /tmp/test.sh && /tmp/test.sh'"
+        run-one-until-success make exec-devpod-noninteractive NS_NUM=$NS_NUM CMD="ls"
+        make exec-devpod-noninteractive NS_NUM=$NS_NUM CMD="FORCE_INTERACTIVE=yes bash -c 'source ~/.bashrc && chmod +x /tmp/test.sh && /tmp/test.sh'"
 
     - name: Cleanup
       env:

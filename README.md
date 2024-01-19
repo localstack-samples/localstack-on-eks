@@ -54,7 +54,7 @@ Let's create the AWS cluster. This blueprint builds namespaces in the format of 
 to choose a namespace number for the following targets.
 
 ```shell
-make aws-setup-cluster NS_NUM=0
+make aws-setup-cluster
 
 # Create the namespace and the Fargate profile.
 make aws-bootstrap NS_NUM=0
@@ -104,7 +104,7 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 Let's create the AWS cluster using EKS Anywhere locally. This blueprint builds namespaces in the format of `ls<NS_NUM>`. So, we're going to choose a namespace number for the following targets.
 
 ```shell
-make local-setup-cluster NS_NUM=0
+make local-setup-cluster
 
 # Create the namespace.
 make local-bootstrap NS_NUM=0
@@ -135,4 +135,35 @@ After the test passes, let's cleanup the EKS cluster:
 ```shell
 make local-deploy-cleanup NS_NUM=0
 make local-cleanup-cluster
+```
+
+### Multiple Namespaces
+
+To deploy multiple Localstack instances with their own dev environment, you can do something like this:
+
+```shell
+
+function create_environment () {
+    local namespace_idx="$1"
+    make local-bootstrap NS_NUM=$namespace_idx
+    make patch-coredns NS_NUM=$namespace_idx
+    make deploy-setup NS_NUM=$namespace_idx
+    make deploy-localstack NS_NUM=$namespace_idx
+    make exec-devpod-interactive NS_NUM=$namespace_idx
+}
+
+function check_localstack () {
+    local namespace_idx="$1"
+    make exec-devpod-noninteractive NS_NUM=$namespace_idx CMD="curl -i localstack$namespace_idx:4566"
+}
+
+# Create a 100 environments
+for i in `seq 0 100`; do
+    create_environment "$i"
+done
+
+# Execute the `ls -la` command on all 1000
+for i in `seq 0 100`; do
+    check_localstack "$i"
+done
 ```
