@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- localstack.cloud_v1alpha1_localstack.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples
