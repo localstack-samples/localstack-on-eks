@@ -51,6 +51,9 @@ type LocalstackInstanceSpec struct {
 
 	// +kubebuilder:validation:Optional
 	LambdaEnvironmentTimeout *kmeta.Duration `json:"lambda_environment_timeout"`
+
+	// +kubebuilder:validation:Optional
+	AuthTokenSecretRef *kcore.SecretEnvSource `json:"auth_token_secret_ref,omitempty"`
 }
 
 type GDCEnvSpec struct {

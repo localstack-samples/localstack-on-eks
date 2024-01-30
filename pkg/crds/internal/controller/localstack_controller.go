@@ -58,7 +58,7 @@ func (r *LocalstackReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		},
 	)
 
-	// Step 1: get resource from request
+	// Step 1: get localstack resource from request
 	localstack := lscv1alpha1.Localstack{}
 	log.V(1).Info("retrieving localstack resource")
 	if err := r.Get(ctx, req.NamespacedName, &localstack); err != nil {
@@ -66,6 +66,87 @@ func (r *LocalstackReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			log.Error(err, "failed to retrieve localstack resource")
 		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// Step 2: get localstack deployment
+	log.V(1).Info("retrieving localstack deployment")
+	deployment, err := r.getLocalstackDeployment(ctx, &localstack)
+	if err != nil {
+		log.Error(err, "failed to retrieve localstack deployment")
+		return ctrl.Result{}, err
+	}
+
+	// Step 3: get localstack service
+	log.V(1).Info("retrieving localstack service")
+	service, err := r.getLocalstackService(ctx, &localstack)
+	if err != nil {
+		log.Error(err, "failed to retrieve localstack service")
+		return ctrl.Result{}, err
+	}
+
+	// Step 4: get gdc-env deployment
+	log.V(1).Info("retrieving gdc-env deployment")
+	gdcEnvDeployment, err := r.getGdcEnvDeployment(ctx, &localstack)
+	if err != nil {
+		log.Error(err, "failed to retrieve gdc-env deployment")
+		return ctrl.Result{}, err
+	}
+
+	// Step 5: check if DNS is configured
+	log.V(1).Info("checking if DNS is configured")
+	dnsConfigured, err := r.isDnsConfigured(ctx, &localstack)
+	if err != nil {
+		log.Error(err, "failed to check if DNS is configured")
+		return ctrl.Result{}, err
+	}
+	log.V(1).Info("DNS is configured", "dnsConfigured", dnsConfigured)
+
+	// Step 6: update localstack status
+	log.V(1).Info("updating localstack status")
+	if err := r.updateLocalstackStatus(ctx, &localstack, deployment, service, gdcEnvDeployment, dnsConfigured); err != nil {
+		log.Error(err, "failed to update localstack status")
+		return ctrl.Result{}, err
+	}
+
+	// Step 7: create/update localstack deployment
+	log.V(1).Info("creating/updating localstack deployment")
+	if _, err := r.createOrUpdateLocalstackDeployment(ctx, &localstack); err != nil {
+		log.Error(err, "failed to create/update localstack deployment")
+		return ctrl.Result{}, err
+	}
+
+	// Step 8: create/update gdc env deployment
+	log.V(1).Info("creating/updating gdc-env deployment")
+	if _, err := r.createOrUpdateGdcEnvDeployment(ctx, &localstack); err != nil {
+		log.Error(err, "failed to create/update gdc-env deployment")
+		return ctrl.Result{}, err
+	}
+
+	// Step 9: create/update localstack service
+	log.V(1).Info("creating/updating localstack service")
+	if _, err := r.createOrUpdateLocalstackService(ctx, &localstack); err != nil {
+		log.Error(err, "failed to create/update localstack service")
+		return ctrl.Result{}, err
+	}
+
+	// Step 10: retrieve service IP address if it exists
+	log.V(1).Info("retrieving service IP address")
+	serviceIP, err := r.getLocalstackServiceIPAddress(ctx, &localstack)
+	if err != nil {
+		log.Error(err, "failed to retrieve service IP address")
+		return ctrl.Result{}, err
+	}
+	if serviceIP == nil {
+		log.V(1).Info("service IP address is nil; wait for next reconcile loop")
+		return ctrl.Result{}, nil
+	}
+	log.V(1).Info("service IP address is not nil")
+
+	// Step 11: update DNS config
+	log.V(1).Info("updating DNS config")
+	if _, err := r.updateDnsConfig(ctx, &localstack, *serviceIP); err != nil {
+		log.Error(err, "failed to create/update DNS config")
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
