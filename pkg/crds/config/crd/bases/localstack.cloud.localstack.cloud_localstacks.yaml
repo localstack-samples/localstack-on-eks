@@ -422,6 +422,11 @@ spec:
                 type: object
               localstack:
                 properties:
+                  auth_token:
+                    maxLength: 39
+                    minLength: 39
+                    pattern: ^ls-[a-zA-Z]{4}[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$
+                    type: string
                   debug:
                     default: false
                     type: boolean
