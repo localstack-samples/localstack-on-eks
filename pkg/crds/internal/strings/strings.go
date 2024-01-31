@@ -20,3 +20,22 @@ func RsplitN(s string, sep string, n int) []string {
 	result = append([]string{s}, result...)
 	return result
 }
+
+func ContainsString(slice []string, str string) bool {
+	for _, s := range slice {
+		if s == str {
+			return true
+		}
+	}
+	return false
+}
+
+func RemoveString(slice []string, str string) []string {
+	result := []string{}
+	for _, s := range slice {
+		if s != str {
+			result = append(result, s)
+		}
+	}
+	return result
+}
