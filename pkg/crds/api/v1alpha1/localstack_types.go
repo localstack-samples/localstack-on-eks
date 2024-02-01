@@ -53,6 +53,9 @@ type LocalstackInstanceSpec struct {
 	LambdaEnvironmentTimeout *kmeta.Duration `json:"lambda_environment_timeout"`
 
 	// +kubebuilder:validation:Optional
+	Services []string `json:"services"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern=`^ls-[a-zA-Z]{4}[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$`
 	// +kubebuilder:validation:MaxLength=39
 	// +kubebuilder:validation:MinLength=39

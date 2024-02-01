@@ -444,6 +444,10 @@ func (r *LocalstackReconciler) desiredLocalstackDeployment(localstack *lscv1alph
 	if localstack.Spec.LocalstackInstanceSpec.AuthToken != nil {
 		envVars = append(envVars, kcore.EnvVar{Name: "LOCALSTACK_AUTH_TOKEN", Value: *localstack.Spec.LocalstackInstanceSpec.AuthToken})
 	}
+	if localstack.Spec.LocalstackInstanceSpec.Services != nil {
+		services := strings.Join(localstack.Spec.LocalstackInstanceSpec.Services, ",")
+		envVars = append(envVars, kcore.EnvVar{Name: "SERVICES", Value: services})
+	}
 
 	containerPorts := []kcore.ContainerPort{
 		{ContainerPort: 53, Name: "dns-svc", Protocol: kcore.ProtocolTCP},

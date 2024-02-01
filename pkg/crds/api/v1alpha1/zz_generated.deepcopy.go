@@ -78,6 +78,11 @@ func (in *LocalstackInstanceSpec) DeepCopyInto(out *LocalstackInstanceSpec) {
 		*out = new(metav1.Duration)
 		**out = **in
 	}
+	if in.Services != nil {
+		in, out := &in.Services, &out.Services
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.AuthToken != nil {
 		in, out := &in.AuthToken, &out.AuthToken
 		*out = new(string)
