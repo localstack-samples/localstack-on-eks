@@ -3,9 +3,12 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 
 	lscv1alpha1 "github.com/localstack-samples/localstack-on-eks/pkg/crds/api/v1alpha1"
+	err "github.com/localstack-samples/localstack-on-eks/pkg/crds/internal/errors"
 	"github.com/localstack-samples/localstack-on-eks/pkg/crds/internal/pointers"
 	"github.com/localstack-samples/localstack-on-eks/pkg/crds/internal/providers/dns"
 	ss "github.com/localstack-samples/localstack-on-eks/pkg/crds/internal/strings"
@@ -20,22 +23,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-// CONSTANTS
-
-const (
-	LOCALSTACK_START_PORT = 4510
-	LOCALSTACK_END_PORT   = 4560
-)
-
 // HELPER FUNCTIONS
 
 func generateDomainName(localstackName string, localstackNamespace string) string {
 	return "localstack-" + localstackName + "." + localstackNamespace
 }
 
-type EditCoreConfigFunc func(*dns.CoreConfig)
+type EditCoreConfigFunc func(*dns.CoreConfig) bool
 
-func (r *LocalstackReconciler) readAndUpdateCoreDns(ctx context.Context, localstack *lscv1alpha1.Localstack, fn EditCoreConfigFunc) (controllerutil.OperationResult, error) {
+func (r *LocalstackReconciler) readAndUpdateCoreDns(ctx context.Context, localstack *lscv1alpha1.Localstack, fn EditCoreConfigFunc) (*ctrl.Result, controllerutil.OperationResult, error) {
 	// Step 1: retrieve configmap
 	configmap := kcore.ConfigMap{}
 	configmapName := types.NamespacedName{
@@ -43,34 +39,50 @@ func (r *LocalstackReconciler) readAndUpdateCoreDns(ctx context.Context, localst
 		Name:      localstack.Spec.DnsConfigName,
 	}
 	if err := r.Get(ctx, configmapName, &configmap); err != nil {
-		return controllerutil.OperationResultNone, err
+		// check if "Operation cannot be fulfilled on deployments.apps \"coredns\": the object has been modified; please apply your changes to the latest version and try again"
+
+		if kerrors.IsConflict(err) {
+			// Object is invalid, possibly due to using stale UID, requeue the request
+			r.Log.Error(err, "configmap is invalid")
+			return &ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: 5 * time.Second,
+			}, controllerutil.OperationResultNone, nil
+		}
+
+		return nil, controllerutil.OperationResultNone, err
 	}
 
 	// Step 2: parse configmap data
 	configmapData := configmap.Data
 	corefile, ok := configmapData["Corefile"]
 	if !ok {
-		return controllerutil.OperationResultNone, errors.New("corefile not found in configmap")
+		return nil, controllerutil.OperationResultNone, errors.New("corefile not found in configmap")
 	}
 
 	parser := &dns.DefaultCorefileParser{}
 	config, err := parser.Unmarshal(corefile)
 	if err != nil {
-		return controllerutil.OperationResultNone, err
+		return nil, controllerutil.OperationResultNone, err
 	}
 
 	// Step 3: edit configmap's Corefile data
-	fn(&config)
+	changed := fn(&config)
+
+	// If no changes were made, return early
+	if !changed {
+		return nil, controllerutil.OperationResultNone, nil
+	}
 
 	// Step 4: update configmap
 	corefile, err = parser.Marshal(config)
 	if err != nil {
-		return controllerutil.OperationResultNone, err
+		return nil, controllerutil.OperationResultNone, err
 	}
 
 	configmap.Data["Corefile"] = corefile
 	if err := r.Update(ctx, &configmap); err != nil {
-		return controllerutil.OperationResultNone, err
+		return nil, controllerutil.OperationResultNone, err
 	}
 
 	// Step 5: rollout CoreDNS deployment
@@ -80,19 +92,60 @@ func (r *LocalstackReconciler) readAndUpdateCoreDns(ctx context.Context, localst
 		Name:      "coredns",
 	}
 	if err := r.Get(ctx, deploymentName, &deployment); err != nil {
-		return controllerutil.OperationResultNone, err
+		if kerrors.IsNotFound(err) || kerrors.IsInvalid(err) {
+			// Object is not found, invalid, possibly due to using stale UID, requeue the request
+			return &ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: 5 * time.Second,
+			}, controllerutil.OperationResultNone, nil
+		}
+		return nil, controllerutil.OperationResultNone, err
 	}
 
 	// Step 6: update CoreDNS deployment
+	if deployment.Spec.Template.ObjectMeta.Annotations == nil {
+		deployment.Spec.Template.ObjectMeta.Annotations = map[string]string{}
+	}
 	deployment.Spec.Template.ObjectMeta.Annotations["kubectl.kubernetes.io/restartedAt"] = kmeta.NowMicro().Time.String()
 	if err := r.Update(ctx, &deployment); err != nil {
-		return controllerutil.OperationResultNone, err
+		if kerrors.IsConflict(err) {
+			// Object is invalid, possibly due to using stale UID, requeue the request
+			r.Log.Error(err, "coredns deployment is invalid")
+			return &ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: 5 * time.Second,
+			}, controllerutil.OperationResultNone, nil
+		}
+		return nil, controllerutil.OperationResultNone, err
 	}
-
-	return controllerutil.OperationResultUpdated, nil
+	return nil, controllerutil.OperationResultUpdated, nil
 }
 
 // GETTER HELPERS
+
+func (r *LocalstackReconciler) validateLocalstackResource(localstack *lscv1alpha1.Localstack) error {
+	disallowedEnvVars := []string{
+		"DEBUG",
+		"EXTERNAL_SERVICE_PORTS_START",
+		"EXTERNAL_SERVICE_PORTS_END",
+		"LOCALSTACK_K8S_SERVICE_NAME",
+		"LOCALSTACK_K8S_NAMESPACE",
+		"LAMBDA_RUNTIME_EXECUTOR",
+		"LAMBDA_K8S_IMAGE_PREFIX",
+		"OVERRIDE_IN_DOCKER",
+		"GATEWAY_LISTEN",
+		"DNS_RESOLVE_IP",
+		"LOCALSTACK_HOST",
+		"LOCALSTACK_AUTH_TOKEN",
+	}
+	for _, envVar := range localstack.Spec.Env {
+		if ss.ContainsString(disallowedEnvVars, envVar.Name) {
+			return err.NewWithRecorder(r.Recorder, "disallowed environment variable: "+envVar.Name)
+		}
+	}
+
+	return nil
+}
 
 func (r *LocalstackReconciler) getLocalstackDeployment(ctx context.Context, localstack *lscv1alpha1.Localstack) (*kapps.Deployment, error) {
 	deployment := kapps.Deployment{}
@@ -101,22 +154,7 @@ func (r *LocalstackReconciler) getLocalstackDeployment(ctx context.Context, loca
 		Name:      "localstack-" + localstack.Name,
 	}
 	if err := r.Get(ctx, deploymentName, &deployment); err != nil {
-		if !kerrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &deployment, nil
-}
-
-func (r *LocalstackReconciler) getGdcEnvDeployment(ctx context.Context, localstack *lscv1alpha1.Localstack) (*kapps.Deployment, error) {
-	deployment := kapps.Deployment{}
-	deploymentName := types.NamespacedName{
-		Namespace: localstack.Namespace,
-		Name:      "gdc-env-" + localstack.Name,
-	}
-	if err := r.Get(ctx, deploymentName, &deployment); err != nil {
-		if !kerrors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -131,7 +169,7 @@ func (r *LocalstackReconciler) getLocalstackService(ctx context.Context, localst
 		Name:      "localstack-" + localstack.Name,
 	}
 	if err := r.Get(ctx, serviceName, &service); err != nil {
-		if !kerrors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -144,6 +182,12 @@ func (r *LocalstackReconciler) getLocalstackServiceIPAddress(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
+	if service == nil {
+		return nil, nil
+	}
+	if service.Spec.ClusterIP == "" {
+		return nil, nil
+	}
 	return &service.Spec.ClusterIP, nil
 }
 
@@ -154,7 +198,7 @@ func (r *LocalstackReconciler) isDnsConfigured(ctx context.Context, localstack *
 		Name:      localstack.Spec.DnsConfigName,
 	}
 	if err := r.Get(ctx, configmapName, &configmap); err != nil {
-		if !kerrors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			return false, nil
 		}
 		return false, err
@@ -192,7 +236,6 @@ func (r *LocalstackReconciler) updateLocalstackStatus(
 	localstack *lscv1alpha1.Localstack,
 	deployment *kapps.Deployment,
 	service *kcore.Service,
-	gdcEnvDeployment *kapps.Deployment,
 	dnsConfigured bool,
 ) error {
 	if localstack == nil {
@@ -203,12 +246,6 @@ func (r *LocalstackReconciler) updateLocalstackStatus(
 	readyLocalstack := false
 	if deployment != nil {
 		readyLocalstack = deployment.Status.ReadyReplicas == 1
-	}
-
-	// check if gdc-env deployment is ready
-	readyDev := false
-	if gdcEnvDeployment != nil {
-		readyDev = gdcEnvDeployment.Status.ReadyReplicas == 1
 	}
 
 	// get localstack service IP address
@@ -226,10 +263,9 @@ func (r *LocalstackReconciler) updateLocalstackStatus(
 
 	// generate localstack status
 	localstack.Status = lscv1alpha1.LocalstackStatus{
-		ReadyLocalstack: readyLocalstack,
-		ReadyDev:        readyDev,
-		IP:              ipAddress,
-		DNS:             dnsAddress,
+		Ready: readyLocalstack,
+		IP:    ipAddress,
+		DNS:   dnsAddress,
 	}
 
 	// update localstack status
@@ -237,30 +273,6 @@ func (r *LocalstackReconciler) updateLocalstackStatus(
 		return err
 	}
 	return nil
-}
-
-func (r *LocalstackReconciler) createOrUpdateGdcEnvDeployment(ctx context.Context, localstack *lscv1alpha1.Localstack) (controllerutil.OperationResult, error) {
-	deployment := kapps.Deployment{
-		ObjectMeta: kmeta.ObjectMeta{
-			Namespace: localstack.Namespace,
-			Name:      "localstack-" + localstack.Name,
-		},
-	}
-
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, &deployment, func() error {
-		deployment.Spec = kapps.DeploymentSpec{}
-
-		if err := ctrl.SetControllerReference(localstack, &deployment, r.Scheme); err != nil {
-			return err
-		}
-		return nil
-	})
-
-	if err != nil {
-		return op, err
-	}
-
-	return op, nil
 }
 
 func (r *LocalstackReconciler) createOrUpdateLocalstackService(ctx context.Context, localstack *lscv1alpha1.Localstack) (controllerutil.OperationResult, error) {
@@ -287,7 +299,7 @@ func (r *LocalstackReconciler) createOrUpdateLocalstackService(ctx context.Conte
 	return op, nil
 }
 
-func (r *LocalstackReconciler) createOrUpdateLocalstackDeployment(ctx context.Context, localstack *lscv1alpha1.Localstack, dnsResolveIp string) (controllerutil.OperationResult, error) {
+func (r *LocalstackReconciler) createOrUpdateLocalstackDeployment(ctx context.Context, localstack *lscv1alpha1.Localstack, dnsResolveIp string) (*ctrl.Result, controllerutil.OperationResult, error) {
 	deployment := kapps.Deployment{
 		ObjectMeta: kmeta.ObjectMeta{
 			Namespace: localstack.Namespace,
@@ -304,35 +316,36 @@ func (r *LocalstackReconciler) createOrUpdateLocalstackDeployment(ctx context.Co
 		return nil
 	})
 
-	if err != nil {
-		return op, err
+	if kerrors.IsConflict(err) {
+		// Object is invalid, possibly due to using stale UID, requeue the request
+		return &ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: 5 * time.Second,
+		}, op, nil
 	}
 
-	return op, nil
+	return nil, op, err
 }
 
 // Retrieve configmap's `Corefile` data from DNS config and parse it.
 // After parsing it, we can remove the domain name from the configmap
 // and update it.
 // Finally, rollout the CoreDNS deployment to apply the new configmap.
-func (r *LocalstackReconciler) finalizeDnsConfig(ctx context.Context, localstack *lscv1alpha1.Localstack) (controllerutil.OperationResult, error) {
-	result, err := r.readAndUpdateCoreDns(ctx, localstack, func(config *dns.CoreConfig) {
+func (r *LocalstackReconciler) finalizeDnsConfig(ctx context.Context, localstack *lscv1alpha1.Localstack) (*ctrl.Result, controllerutil.OperationResult, error) {
+	return r.readAndUpdateCoreDns(ctx, localstack, func(config *dns.CoreConfig) bool {
 		domainName := generateDomainName(localstack.Name, localstack.Namespace)
 		directiveName := domainName + ":53"
-		config.RemoveDirective(directiveName)
+		changed := config.RemoveDirective(directiveName) > 0
+		return changed
 	})
-	if err != nil {
-		return controllerutil.OperationResultNone, err
-	}
-	return result, nil
 }
 
 // Retrieve configmap's `Corefile` data from DNS config and parse it.
 // After parsing it, we can add the new domain name to the configmap
 // and update it.
 // Finally, rollout the CoreDNS deployment to apply the new configmap.
-func (r *LocalstackReconciler) updateDnsConfig(ctx context.Context, localstack *lscv1alpha1.Localstack, dnsResolveIp string) (controllerutil.OperationResult, error) {
-	result, err := r.readAndUpdateCoreDns(ctx, localstack, func(config *dns.CoreConfig) {
+func (r *LocalstackReconciler) updateDnsConfig(ctx context.Context, localstack *lscv1alpha1.Localstack, dnsResolveIp string) (*ctrl.Result, controllerutil.OperationResult, error) {
+	return r.readAndUpdateCoreDns(ctx, localstack, func(config *dns.CoreConfig) bool {
 		domainName := generateDomainName(localstack.Name, localstack.Namespace)
 		directiveName := domainName + ":53"
 		directive := dns.Directive{
@@ -343,12 +356,16 @@ func (r *LocalstackReconciler) updateDnsConfig(ctx context.Context, localstack *
 				{StrValue: "forward . " + dnsResolveIp},
 			},
 		}
-		config.AddDirective(directive)
+		changed := false
+		if !config.HasDirective(directiveName) {
+			config.AddDirective(directive)
+			changed = true
+		}
+		if config.KeepUniqueDirectives() > 0 {
+			changed = true
+		}
+		return changed
 	})
-	if err != nil {
-		return controllerutil.OperationResultNone, err
-	}
-	return result, nil
 }
 
 // SPECS
@@ -361,6 +378,9 @@ func (r *LocalstackReconciler) desiredLocalstackService(localstack *lscv1alpha1.
 	}
 	for i := startPort; i <= endPort; i++ {
 		servicePorts = append(servicePorts, kcore.ServicePort{Port: int32(i), Name: "ext-svc-" + ss.IntToString(i), Protocol: kcore.ProtocolTCP})
+	}
+	if endPort < LOCALSTACK_SERVER_PORT {
+		servicePorts = append(servicePorts, kcore.ServicePort{Port: LOCALSTACK_SERVER_PORT, Name: "localstack-svc", Protocol: kcore.ProtocolTCP})
 	}
 	return kcore.ServiceSpec{
 		Selector: map[string]string{
@@ -379,8 +399,8 @@ func (r *LocalstackReconciler) desiredLocalstackDeployment(localstack *lscv1alph
 			kcore.ResourceMemory: kresource.MustParse("128Mi"),
 		},
 	}
-	if localstack.Spec.LocalstackInstanceSpec.Resources != nil {
-		resources = *localstack.Spec.LocalstackInstanceSpec.Resources
+	if localstack.Spec.Resources != nil {
+		resources = *localstack.Spec.Resources
 	}
 
 	// Default readiness probe
@@ -388,7 +408,7 @@ func (r *LocalstackReconciler) desiredLocalstackDeployment(localstack *lscv1alph
 		ProbeHandler: kcore.ProbeHandler{
 			HTTPGet: &kcore.HTTPGetAction{
 				Path:   "/_localstack/health",
-				Port:   intstr.FromString("edge"),
+				Port:   intstr.FromInt(LOCALSTACK_SERVER_PORT),
 				Scheme: kcore.URISchemeHTTP,
 			},
 		},
@@ -398,8 +418,8 @@ func (r *LocalstackReconciler) desiredLocalstackDeployment(localstack *lscv1alph
 		SuccessThreshold:    1,
 		FailureThreshold:    3,
 	}
-	if localstack.Spec.LocalstackInstanceSpec.ReadinessProbe != nil {
-		readinessProbe = localstack.Spec.LocalstackInstanceSpec.ReadinessProbe
+	if localstack.Spec.ReadinessProbe != nil {
+		readinessProbe = localstack.Spec.ReadinessProbe
 	}
 
 	// Default liveness probe
@@ -407,7 +427,7 @@ func (r *LocalstackReconciler) desiredLocalstackDeployment(localstack *lscv1alph
 		ProbeHandler: kcore.ProbeHandler{
 			HTTPGet: &kcore.HTTPGetAction{
 				Path:   "/_localstack/health",
-				Port:   intstr.FromString("edge"),
+				Port:   intstr.FromInt(LOCALSTACK_SERVER_PORT),
 				Scheme: kcore.URISchemeHTTP,
 			},
 		},
@@ -417,14 +437,14 @@ func (r *LocalstackReconciler) desiredLocalstackDeployment(localstack *lscv1alph
 		SuccessThreshold:    1,
 		FailureThreshold:    3,
 	}
-	if localstack.Spec.LocalstackInstanceSpec.LivenessProbe != nil {
-		livenessProbe = localstack.Spec.LocalstackInstanceSpec.LivenessProbe
+	if localstack.Spec.LivenessProbe != nil {
+		livenessProbe = localstack.Spec.LivenessProbe
 	}
 
 	startPort := LOCALSTACK_START_PORT
 	endPort := LOCALSTACK_END_PORT
 	envVars := []kcore.EnvVar{
-		{Name: "DEBUG", Value: ss.BoolToString(localstack.Spec.LocalstackInstanceSpec.Debug)},
+		{Name: "DEBUG", Value: ss.BoolToString(localstack.Spec.Debug)},
 		{Name: "EXTERNAL_SERVICE_PORTS_START", Value: ss.IntToString(startPort)},
 		{Name: "EXTERNAL_SERVICE_PORTS_END", Value: ss.IntToString(endPort)},
 		{Name: "LOCALSTACK_K8S_SERVICE_NAME", Value: "localstack-" + localstack.Name},
@@ -432,21 +452,12 @@ func (r *LocalstackReconciler) desiredLocalstackDeployment(localstack *lscv1alph
 		{Name: "LAMBDA_RUNTIME_EXECUTOR", Value: "kubernetes"},
 		{Name: "LAMBDA_K8S_IMAGE_PREFIX", Value: "localstack/lambda-"},
 		{Name: "OVERRIDE_IN_DOCKER", Value: "1"},
-		{Name: "GATEWAY_LISTEN", Value: "0.0.0.0:4566"},
+		{Name: "GATEWAY_LISTEN", Value: fmt.Sprintf("0.0.0.0:%d", LOCALSTACK_SERVER_PORT)},
 		{Name: "DNS_RESOLVE_IP", Value: dnsResolveIp},
-		{Name: "LOCALSTACK_HOST", Value: generateDomainName(localstack.Name, localstack.Namespace) + ":4566"},
+		{Name: "LOCALSTACK_HOST", Value: fmt.Sprintf("%s:%d", generateDomainName(localstack.Name, localstack.Namespace), LOCALSTACK_SERVER_PORT)},
 	}
-	if localstack.Spec.LocalstackInstanceSpec.LambdaEnvironmentTimeout != nil {
-		lambdaRuntimeEnvironmentTimeout := int(localstack.Spec.LocalstackInstanceSpec.LambdaEnvironmentTimeout.Duration.Seconds())
-		lambdaRuntimeEnvironmentTimeoutStr := ss.IntToString(lambdaRuntimeEnvironmentTimeout)
-		envVars = append(envVars, kcore.EnvVar{Name: "LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT", Value: lambdaRuntimeEnvironmentTimeoutStr})
-	}
-	if localstack.Spec.LocalstackInstanceSpec.AuthToken != nil {
-		envVars = append(envVars, kcore.EnvVar{Name: "LOCALSTACK_AUTH_TOKEN", Value: *localstack.Spec.LocalstackInstanceSpec.AuthToken})
-	}
-	if localstack.Spec.LocalstackInstanceSpec.Services != nil {
-		services := strings.Join(localstack.Spec.LocalstackInstanceSpec.Services, ",")
-		envVars = append(envVars, kcore.EnvVar{Name: "SERVICES", Value: services})
+	if localstack.Spec.AuthToken != nil {
+		envVars = append(envVars, kcore.EnvVar{Name: "LOCALSTACK_AUTH_TOKEN", Value: *localstack.Spec.AuthToken})
 	}
 
 	containerPorts := []kcore.ContainerPort{
@@ -455,6 +466,8 @@ func (r *LocalstackReconciler) desiredLocalstackDeployment(localstack *lscv1alph
 	for i := startPort; i <= endPort; i++ {
 		containerPorts = append(containerPorts, kcore.ContainerPort{ContainerPort: int32(i), Name: "ext-svc-" + ss.IntToString(i), Protocol: kcore.ProtocolTCP})
 	}
+
+	envVars = append(envVars, localstack.Spec.Env...)
 
 	return kapps.DeploymentSpec{
 		Replicas: pointers.Int32(1),
@@ -473,20 +486,22 @@ func (r *LocalstackReconciler) desiredLocalstackDeployment(localstack *lscv1alph
 				Containers: []kcore.Container{
 					{
 						Name:  "localstack",
-						Image: localstack.Spec.LocalstackInstanceSpec.Image,
+						Image: localstack.Spec.Image,
 						Command: []string{
 							"/bin/bash",
 							"-c",
 							"echo 'ulimit -Sn 32767' >> /root/.bashrc && echo 'ulimit -Su 16383' >> /root/.bashrc && docker-entrypoint.sh",
 						},
-						Env:             envVars,
 						Ports:           containerPorts,
 						ImagePullPolicy: kcore.PullIfNotPresent,
 						LivenessProbe:   livenessProbe,
 						ReadinessProbe:  readinessProbe,
 						Resources:       resources,
+						EnvFrom:         localstack.Spec.EnvFrom,
+						Env:             envVars,
 					},
 				},
+				DNSPolicy: localstack.Spec.DNSPolicy,
 			},
 		},
 	}

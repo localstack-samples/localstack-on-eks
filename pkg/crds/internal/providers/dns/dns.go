@@ -172,19 +172,53 @@ func (p *DefaultCorefileParser) Unmarshal(data string) (CoreConfig, error) {
 	return p.Parse(reader)
 }
 
+// HasDirective checks if a CoreConfig has a directive with the given name
+func (c *CoreConfig) HasDirective(directiveName string) bool {
+	for _, directive := range c.Directives {
+		if directive.Name == directiveName {
+			return true
+		}
+	}
+	return false
+}
+
 // AddDirective adds a new directive to the CoreConfig
 func (c *CoreConfig) AddDirective(directive Directive) {
 	c.Directives = append(c.Directives, directive)
 }
 
-// RemoveDirective removes a directive from the CoreConfig
-func (c *CoreConfig) RemoveDirective(directiveName string) {
+// RemoveDirective removes a directive from the CoreConfig.
+// It returns the number of directives removed.
+func (c *CoreConfig) RemoveDirective(directiveName string) int {
+	newDirectiveList := []Directive{}
+	removedDirectives := 0
 	for i, directive := range c.Directives {
-		if directive.Name == directiveName {
-			c.Directives = append(c.Directives[:i], c.Directives[i+1:]...)
-			break
+		if directive.Name != directiveName {
+			newDirectiveList = append(newDirectiveList, c.Directives[i])
+		} else {
+			removedDirectives++
 		}
 	}
+	c.Directives = newDirectiveList
+	return removedDirectives
+}
+
+// KeepUniqueDirectives removes duplicate directives from the CoreConfig.
+// It returns the number of duplicate directives removed.
+func (c *CoreConfig) KeepUniqueDirectives() int {
+	uniqueDirectives := []Directive{}
+	seen := map[string]bool{}
+	removedDirectives := 0
+	for _, directive := range c.Directives {
+		if _, ok := seen[directive.Name]; !ok {
+			seen[directive.Name] = true
+			uniqueDirectives = append(uniqueDirectives, directive)
+		} else {
+			removedDirectives++
+		}
+	}
+	c.Directives = uniqueDirectives
+	return removedDirectives
 }
 
 // Get directive names from the CoreConfig

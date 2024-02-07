@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	kcore "k8s.io/api/core/v1"
-	kmeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -38,32 +37,14 @@ type PodSpec struct {
 	LivenessProbe *kcore.Probe `json:"liveness_probe,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	EnvFrom []kcore.EnvFromSource `json:"env_from,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Env []kcore.EnvVar `json:"env,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=Default
 	DNSPolicy kcore.DNSPolicy `json:"dns_policy"`
-}
-
-type LocalstackInstanceSpec struct {
-	PodSpec `json:",inline"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	Debug bool `json:"debug"`
-
-	// +kubebuilder:validation:Optional
-	LambdaEnvironmentTimeout *kmeta.Duration `json:"lambda_environment_timeout"`
-
-	// +kubebuilder:validation:Optional
-	Services []string `json:"services"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Pattern=`^ls-[a-zA-Z]{4}[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$`
-	// +kubebuilder:validation:MaxLength=39
-	// +kubebuilder:validation:MinLength=39
-	AuthToken *string `json:"auth_token,omitempty"`
-}
-
-type GDCEnvSpec struct {
-	PodSpec `json:",inline"`
 }
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -79,16 +60,24 @@ type LocalstackSpec struct {
 	DNSProvider string `json:"dns_provider"`
 
 	// +kubebuilder:validation:Required
+	// +kubebuilder:minLength=1
 	DnsConfigName string `json:"dns_config_name"`
 
 	// +kubebuilder:validation:Required
+	// +kubebuilder:minLength=1
 	DnsConfigNamespace string `json:"dns_config_namespace"`
 
-	// +kubebuilder:validation:Required
-	LocalstackInstanceSpec LocalstackInstanceSpec `json:"localstack,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	Debug bool `json:"debug"`
 
 	// +kubebuilder:validation:Optional
-	GDCEnvSpec *GDCEnvSpec `json:"gdc,omitempty"`
+	// +kubebuilder:validation:Pattern=`^ls-[a-zA-Z]{4}[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$`
+	// +kubebuilder:validation:MaxLength=39
+	// +kubebuilder:validation:MinLength=39
+	AuthToken *string `json:"auth_token,omitempty"`
+
+	PodSpec `json:",inline"`
 }
 
 // LocalstackStatus defines the observed state of Localstack
@@ -96,16 +85,14 @@ type LocalstackStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ReadyLocalstack bool    `json:"ready_localstack"`
-	ReadyDev        bool    `json:"ready_dev"`
-	IP              *string `json:"ip,omitempty"`
-	DNS             *string `json:"dns,omitempty"`
+	Ready bool    `json:"ready"`
+	IP    *string `json:"ip,omitempty"`
+	DNS   *string `json:"dns,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:JSONPath=".status.ready_localstack",name="Ready LS",type="string"
-//+kubebuilder:printcolumn:JSONPath=".status.ready_dev",name="Ready Dev",type="string"
+//+kubebuilder:printcolumn:JSONPath=".status.ready",name="Ready",type="string"
 //+kubebuilder:printcolumn:JSONPath=".status.ip",name="Cluster IP",type="string"
 //+kubebuilder:printcolumn:JSONPath=".status.dns",name="Cluster DNS",type="string"
 

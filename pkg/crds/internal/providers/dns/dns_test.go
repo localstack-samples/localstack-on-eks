@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -76,6 +77,22 @@ localstack0:53 {
 }
 `,
 		},
+		{
+			name: "Test Case 4",
+			data: `
+localstack0:53 {
+	errors
+	cache
+	forward . 10.100.2.53 {}
+}
+
+localstack0:53 {
+    errors
+    cache
+    forward . 10.100.2.53 {}
+}
+`,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -93,8 +110,8 @@ localstack0:53 {
 	}
 }
 
-// Add test that adds new directive
-func TestAddDirective(t *testing.T) {
+// Add test that tests all directive ops functions
+func TestDirectiveOps(t *testing.T) {
 	parser := &DefaultCorefileParser{}
 
 	testCase := `
@@ -158,7 +175,33 @@ func TestAddDirective(t *testing.T) {
 		t.Fatalf("Expected 2 directives, got %d", len(newConfig.Directives))
 	}
 
+	// Check that the new directive was added correctly
 	if newConfig.Directives[1].Name != "localstack0:53" {
 		t.Fatalf("Expected directive name to be localstack0:53, got %s", newConfig.Directives[1].Name)
+	}
+
+	// Check the names of the directives
+	if !reflect.DeepEqual(newConfig.GetDirectiveNames(), []string{".:53", "localstack0:53"}) {
+		t.Fatalf("Expected directive names to be [.53, localstack0:53], got %v", newConfig.GetDirectiveNames())
+	}
+
+	// Remove a non-existing directive
+	if newConfig.RemoveDirective("non-existing-directive") != 0 {
+		t.Fatalf("No directive is expected here")
+	}
+
+	// Remove the newly added directive
+	if newConfig.RemoveDirective("localstack0:53") != 1 {
+		t.Fatalf("Expected 1 directive to be removed")
+	}
+
+	// Test the KeepUniqueDirectives function
+	newConfig.AddDirective(directive)
+	newConfig.AddDirective(directive)
+	if newConfig.KeepUniqueDirectives() != 1 {
+		t.Fatalf("Expected 1 directive to be removed")
+	}
+	if newConfig.KeepUniqueDirectives() != 0 {
+		t.Fatalf("No directive is expected here")
 	}
 }

@@ -42,6 +42,13 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
   - localstack.cloud.localstack.cloud
   resources:
   - localstacks
