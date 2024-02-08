@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devxpod
+  namespace: robert
+  labels:
+    app: devxpod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devxpod
+  template:
+    metadata:
+      labels:
+        app: devxpod
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+      containers:
+      - name: devxpod
+        image: cabeaulac/devxpod-gdc:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+        env:
+          - name: NS_LOCALSTACK_HOST
+            value: localstack-env-0.robert
+      nodeSelector:
+        kubernetes.io/os: linux

@@ -1,0 +1,15 @@
+apiVersion: localstack.cloud.localstack.cloud/v1alpha1
+kind: Localstack
+metadata:
+  name: env-0
+  namespace: robert
+spec:
+  image: localstack/localstack-pro:3.1.0
+  debug: trace
+
+  authToken: "ls-zADUlUve-TEDo-guFU-6660-6218meNU36b4"
+  autoLoadPods: ["chad-lambda-ddb-awscdk-deployed"]
+
+  dnsProvider: coredns
+  dnsConfigName: coredns
+  dnsConfigNamespace: kube-system

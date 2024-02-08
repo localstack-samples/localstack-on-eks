@@ -1,0 +1,10 @@
+apiVersion: localstack.cloud.localstack.cloud/v1alpha1
+kind: Localstack
+metadata:
+  name: env-1
+  namespace: robert
+spec:
+  image: localstack/localstack:3.1.0
+  dnsProvider: coredns
+  dnsConfigName: coredns
+  dnsConfigNamespace: kube-system

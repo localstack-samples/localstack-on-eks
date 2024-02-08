@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -125,7 +126,7 @@ func (r *LocalstackReconciler) readAndUpdateCoreDns(ctx context.Context, localst
 
 func (r *LocalstackReconciler) validateLocalstackResource(localstack *lscv1alpha1.Localstack) error {
 	disallowedEnvVars := []string{
-		"DEBUG",
+		"LS_LOG",
 		"EXTERNAL_SERVICE_PORTS_START",
 		"EXTERNAL_SERVICE_PORTS_END",
 		"LOCALSTACK_K8S_SERVICE_NAME",
@@ -137,11 +138,16 @@ func (r *LocalstackReconciler) validateLocalstackResource(localstack *lscv1alpha
 		"DNS_RESOLVE_IP",
 		"LOCALSTACK_HOST",
 		"LOCALSTACK_AUTH_TOKEN",
+		"AUTO_LOAD_POD",
 	}
 	for _, envVar := range localstack.Spec.Env {
 		if ss.ContainsString(disallowedEnvVars, envVar.Name) {
-			return err.NewWithRecorder(r.Recorder, "disallowed environment variable: "+envVar.Name)
+			return err.NewWithRecorder(r.Recorder, localstack, "disallowed environment variable: "+envVar.Name)
 		}
+	}
+
+	if len(localstack.Spec.AutoLoadPods) > 0 && localstack.Spec.AuthToken == nil {
+		return err.NewWithRecorder(r.Recorder, localstack, "auth token is required when cloud pods are specified")
 	}
 
 	return nil
@@ -275,7 +281,7 @@ func (r *LocalstackReconciler) updateLocalstackStatus(
 	return nil
 }
 
-func (r *LocalstackReconciler) createOrUpdateLocalstackService(ctx context.Context, localstack *lscv1alpha1.Localstack) (controllerutil.OperationResult, error) {
+func (r *LocalstackReconciler) createOrUpdateLocalstackService(ctx context.Context, localstack *lscv1alpha1.Localstack) (*ctrl.Result, controllerutil.OperationResult, error) {
 	service := kcore.Service{
 		ObjectMeta: kmeta.ObjectMeta{
 			Namespace: localstack.Namespace,
@@ -283,20 +289,27 @@ func (r *LocalstackReconciler) createOrUpdateLocalstackService(ctx context.Conte
 		},
 	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, &service, func() error {
-		service.Spec = r.desiredLocalstackService(localstack)
+	if err := ctrl.SetControllerReference(localstack, &service, r.Scheme); err != nil {
+		return nil, controllerutil.OperationResultNone, err
+	}
 
-		if err := ctrl.SetControllerReference(localstack, &service, r.Scheme); err != nil {
-			return err
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, &service, func() error {
+		desiredSpec := r.desiredLocalstackService(localstack)
+		if !reflect.DeepEqual(service.Spec, desiredSpec) {
+			service.Spec = desiredSpec
 		}
 		return nil
 	})
 
-	if err != nil {
-		return op, err
+	if kerrors.IsConflict(err) {
+		// Object is invalid, possibly due to using stale UID, requeue the request
+		return &ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: 5 * time.Second,
+		}, op, nil
 	}
 
-	return op, nil
+	return nil, op, err
 }
 
 func (r *LocalstackReconciler) createOrUpdateLocalstackDeployment(ctx context.Context, localstack *lscv1alpha1.Localstack, dnsResolveIp string) (*ctrl.Result, controllerutil.OperationResult, error) {
@@ -307,11 +320,14 @@ func (r *LocalstackReconciler) createOrUpdateLocalstackDeployment(ctx context.Co
 		},
 	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, &deployment, func() error {
-		deployment.Spec = r.desiredLocalstackDeployment(localstack, dnsResolveIp)
+	if err := ctrl.SetControllerReference(localstack, &deployment, r.Scheme); err != nil {
+		return nil, controllerutil.OperationResultNone, err
+	}
 
-		if err := ctrl.SetControllerReference(localstack, &deployment, r.Scheme); err != nil {
-			return err
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, &deployment, func() error {
+		desiredSpec := r.desiredLocalstackDeployment(localstack, dnsResolveIp)
+		if !reflect.DeepEqual(deployment.Spec, desiredSpec) {
+			deployment.Spec = desiredSpec
 		}
 		return nil
 	})
@@ -444,7 +460,8 @@ func (r *LocalstackReconciler) desiredLocalstackDeployment(localstack *lscv1alph
 	startPort := LOCALSTACK_START_PORT
 	endPort := LOCALSTACK_END_PORT
 	envVars := []kcore.EnvVar{
-		{Name: "DEBUG", Value: ss.BoolToString(localstack.Spec.Debug)},
+		{Name: "DEBUG", Value: "1"},
+		{Name: "LS_LOG", Value: localstack.Spec.Debug},
 		{Name: "EXTERNAL_SERVICE_PORTS_START", Value: ss.IntToString(startPort)},
 		{Name: "EXTERNAL_SERVICE_PORTS_END", Value: ss.IntToString(endPort)},
 		{Name: "LOCALSTACK_K8S_SERVICE_NAME", Value: "localstack-" + localstack.Name},
@@ -455,6 +472,9 @@ func (r *LocalstackReconciler) desiredLocalstackDeployment(localstack *lscv1alph
 		{Name: "GATEWAY_LISTEN", Value: fmt.Sprintf("0.0.0.0:%d", LOCALSTACK_SERVER_PORT)},
 		{Name: "DNS_RESOLVE_IP", Value: dnsResolveIp},
 		{Name: "LOCALSTACK_HOST", Value: fmt.Sprintf("%s:%d", generateDomainName(localstack.Name, localstack.Namespace), LOCALSTACK_SERVER_PORT)},
+	}
+	if len(localstack.Spec.AutoLoadPods) > 0 {
+		envVars = append(envVars, kcore.EnvVar{Name: "AUTO_LOAD_POD", Value: strings.Join(localstack.Spec.AutoLoadPods, ",")})
 	}
 	if localstack.Spec.AuthToken != nil {
 		envVars = append(envVars, kcore.EnvVar{Name: "LOCALSTACK_AUTH_TOKEN", Value: *localstack.Spec.AuthToken})

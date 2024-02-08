@@ -44,23 +44,35 @@ spec:
           spec:
             description: LocalstackSpec defines the desired state of Localstack
             properties:
-              auth_token:
+              authToken:
                 maxLength: 39
                 minLength: 39
-                pattern: ^ls-[a-zA-Z]{4}[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$
+                pattern: ^ls-[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$
                 type: string
+              autoLoadPods:
+                items:
+                  type: string
+                type: array
               debug:
-                default: false
-                type: boolean
-              dns_config_name:
+                default: info
+                enum:
+                - trace
+                - trace-internal
+                - debug
+                - info
+                - warn
+                - error
+                - warning
                 type: string
-              dns_config_namespace:
+              dnsConfigName:
                 type: string
-              dns_policy:
+              dnsConfigNamespace:
+                type: string
+              dnsPolicy:
                 default: Default
                 description: DNSPolicy defines how a pod's DNS will be configured.
                 type: string
-              dns_provider:
+              dnsProvider:
                 enum:
                 - none
                 - coredns
@@ -173,7 +185,7 @@ spec:
                   - name
                   type: object
                 type: array
-              env_from:
+              envFrom:
                 items:
                   description: EnvFromSource represents the source of a set of ConfigMaps
                   properties:
@@ -549,9 +561,9 @@ spec:
                     type: object
                 type: object
             required:
-            - dns_config_name
-            - dns_config_namespace
-            - dns_provider
+            - dnsConfigName
+            - dnsConfigNamespace
+            - dnsProvider
             - image
             type: object
           status:

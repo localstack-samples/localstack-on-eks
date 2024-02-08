@@ -37,14 +37,14 @@ type PodSpec struct {
 	LivenessProbe *kcore.Probe `json:"liveness_probe,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	EnvFrom []kcore.EnvFromSource `json:"env_from,omitempty"`
+	EnvFrom []kcore.EnvFromSource `json:"envFrom,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	Env []kcore.EnvVar `json:"env,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=Default
-	DNSPolicy kcore.DNSPolicy `json:"dns_policy"`
+	DNSPolicy kcore.DNSPolicy `json:"dnsPolicy"`
 }
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -57,25 +57,29 @@ type LocalstackSpec struct {
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=none;coredns
-	DNSProvider string `json:"dns_provider"`
+	DNSProvider string `json:"dnsProvider"`
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:minLength=1
-	DnsConfigName string `json:"dns_config_name"`
+	DnsConfigName string `json:"dnsConfigName"`
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:minLength=1
-	DnsConfigNamespace string `json:"dns_config_namespace"`
+	DnsConfigNamespace string `json:"dnsConfigNamespace"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	Debug bool `json:"debug"`
+	// +kubebuilder:default=info
+	// +kubebuilder:validation:Enum=trace;trace-internal;debug;info;warn;error;warning
+	Debug string `json:"debug"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Pattern=`^ls-[a-zA-Z]{4}[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$`
+	AutoLoadPods []string `json:"autoLoadPods,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Pattern=`^ls-[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$`
 	// +kubebuilder:validation:MaxLength=39
 	// +kubebuilder:validation:MinLength=39
-	AuthToken *string `json:"auth_token,omitempty"`
+	AuthToken *string `json:"authToken,omitempty"`
 
 	PodSpec `json:",inline"`
 }

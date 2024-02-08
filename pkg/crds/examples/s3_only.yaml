@@ -1,0 +1,17 @@
+apiVersion: localstack.cloud.localstack.cloud/v1alpha1
+kind: Localstack
+metadata:
+  name: env-2
+  namespace: robert
+spec:
+  image: localstack/localstack:3.1.0
+  debug: info
+
+  # Allow only the following services to load
+  env:
+    - name: SERVICES
+      value: s3
+
+  dnsProvider: coredns
+  dnsConfigName: coredns
+  dnsConfigNamespace: kube-system

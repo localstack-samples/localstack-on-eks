@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/go-logr/logr"
@@ -155,11 +156,14 @@ func (r *LocalstackReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	// Step 6: create/update localstack service
 	log.V(1).Info("creating/updating localstack service")
-	if op, err := r.createOrUpdateLocalstackService(ctx, &localstack); err != nil {
+	if results, op, err := r.createOrUpdateLocalstackService(ctx, &localstack); results != nil {
+		log.V(1).Info("requeing localstack service")
+		return *results, nil
+	} else if err != nil {
 		log.Error(err, "failed to create/update localstack service")
 		return ctrl.Result{}, errors.WithStack(err)
 	} else if op != controllerutil.OperationResultNone {
-		r.Recorder.Event(&localstack, "Normal", string(op), "Service")
+		r.Recorder.Event(&localstack, "Normal", string(op), ss.Capitalize(string(op))+" service")
 	}
 
 	// Step 7: retrieve service IP address if it exists
@@ -187,7 +191,7 @@ func (r *LocalstackReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		log.Error(err, "failed to create/update localstack deployment")
 		return ctrl.Result{}, errors.WithStack(err)
 	} else if op != controllerutil.OperationResultNone {
-		r.Recorder.Event(&localstack, "Normal", string(op), "Deployment")
+		r.Recorder.Event(&localstack, "Normal", string(op), ss.Capitalize(string(op))+" deployment")
 	}
 
 	// Step 9: update DNS config
@@ -199,7 +203,7 @@ func (r *LocalstackReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		log.Error(err, "failed to create/update DNS config")
 		return ctrl.Result{}, errors.WithStack(err)
 	} else if op != controllerutil.OperationResultNone {
-		r.Recorder.Event(&localstack, "Normal", string(op), "DNS config")
+		r.Recorder.Event(&localstack, "Normal", string(op), ss.Capitalize(string(op))+" DNS config")
 	}
 
 	return ctrl.Result{}, nil
@@ -212,5 +216,6 @@ func (r *LocalstackReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&lscv1alpha1.Localstack{}).
 		Owns(&kapps.Deployment{}).
 		Owns(&kcore.Service{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 1}).
 		Complete(r)
 }
