@@ -137,6 +137,33 @@ make local-deploy-cleanup NS_NUM=0
 make local-cleanup-cluster
 ```
 
+##### A 2nd deployment
+
+To setup a second namespace and test in it, simply do this.
+We'll use namespace number 1 (we've already used namespace number 0).
+The cluster already exists so we'll just add another namespace to it,
+deploy LocalStack and the DevPod, login to the DevPod, and test a repo.
+
+```shell
+make local-bootstrap NS_NUM=1
+make patch-coredns NS_NUM=1
+make deploy-setup NS_NUM=1
+make deploy-localstack NS_NUM=1
+make exec-devpod-interactive NS_NUM=1
+
+git clone https://github.com/localstack-samples/lambda-ddb.git
+cd lambda-ddb
+make integ-awscdk-bootstrap
+make integ-awscdk-deploy
+make integ-awscdk-test
+```
+
+**Cleanup Namespace 2**
+
+```shell
+make deploy-cleanup NS_NUM=1
+```
+
 ### Multiple Namespaces
 
 To deploy multiple Localstack instances with their own dev environment, you can do something like this:
