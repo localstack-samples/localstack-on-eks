@@ -3,95 +3,119 @@ SHELL := /bin/bash
 -include .env
 -include .env-local
 
-.PHONY: gen-coredns cleanup-ns aws-setup-cluster aws-deploy-all-ns aws-deploy-ls aws-ssh-devpod aws-cleanup-ns aws-cleanup-cluster aws-setup-ns0 aws-setup-ns1 aws-setup-nss
+.PHONY: \
+    aws-setup-cluster \
+    aws-cleanup-cluster \
+    local-setup-cluster \
+    local-cleanup-cluster \
+    patch-coredns \
+	deploy-setup \
+	deploy-localstack \
+	deploy-cleanup \
+	exec-devpod-interactive
+
+######################
+# Helper targets     #
+######################
+
+check-ls-num:
+ifndef NS_NUM
+	$(error NS_NUM is not set)
+endif
+
+check-cmd:
+ifndef CMD
+	$(error CMD is not set)
+endif
+
+######################
+# Solution 1 targets #
+######################
 
 aws-setup-cluster:
 	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.28 --fargate
+	mkdir -p ~/.kube
+	mv ~/.kube/config ~/.kube/config.bak || true
+	cp "$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig" ~/.kube/config
 
-gen-coredns:
-	kubectl get -n kube-system configmaps coredns -o yaml | \
-	yq  '.data.Corefile = (.data.Corefile + "\nlocalstack$(NS_NUM):53 {\n    errors\n    cache 5\n    forward . 10.100.$(NS_NUM).53\n}")' | \
-	yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
-	> coredns-tmp.yaml
 
-# Delete the namespace
-# Remove localstack${NS_NUM}:53 from the Coredns Corefile
-# Apply the changes to Coredns
-cleanup-ns:
-	kubectl delete namespace ls$(NS_NUM);
-	kubectl get -n kube-system configmaps coredns -o json | \
-	jq '.data.Corefile |= gsub("(?s)localstack${NS_NUM}:53[\\s\\S]*?}"; "")' | \
-	yq eval -p=json - | \
-	yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
-	> coredns-tmp.yaml;
-	kubectl apply -f coredns-tmp.yaml;
-	kubectl rollout restart -n kube-system deployment/coredns;
+aws-cleanup-cluster:
+	eksctl delete fargateprofile \
+		--cluster $(CLUSTER_NAME) \
+		--name ls-fargate-profile$(NS_NUM);
+	eksctl delete cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION);
+	rm -r $(CLUSTER_NAME) eksa-cli-logs;
 
-aws-setup-ns: gen-coredns
+aws-bootstrap:
 	kubectl create namespace ls$(NS_NUM);
 	eksctl create fargateprofile \
-    --cluster $(CLUSTER_NAME) \
-    --name ls-fargate-profile$(NS_NUM) \
-    --namespace ls$(NS_NUM);
-	kubectl apply -f coredns-tmp.yaml;
-	kubectl rollout restart -n kube-system deployment/coredns;
-	envsubst < manifests/coredns/ls-dns-template.yaml > manifests/coredns/ls-dns-gen.yaml
-	kubectl apply -f manifests/coredns/ls-dns-gen.yaml;
+		--cluster $(CLUSTER_NAME) \
+		--name ls-fargate-profile$(NS_NUM) \
+		--namespace ls$(NS_NUM);
 
-aws-deploy-setup: export NODE_PORT=$(shell expr 31566 + ${NS_NUM})
-aws-deploy-setup:
+aws-deploy-cleanup:
+	$(MAKE) deploy-cleanup
+	eksctl delete fargateprofile \
+		--cluster $(CLUSTER_NAME) \
+		--name ls-fargate-profile$(NS_NUM);
+
+######################
+# Solution 2 targets #
+######################
+
+local-setup-cluster:
+	eksctl anywhere create cluster -f clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6;
+	mkdir -p ~/.kube
+	mv ~/.kube/config ~/.kube/config.bak || true
+	cp "$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig" ~/.kube/config
+
+local-cleanup-cluster:
+	eksctl anywhere delete cluster -f clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6;
+	rm -r $(CLUSTER_NAME) eksa-cli-logs;
+
+local-bootstrap: check-ls-num
+	kubectl create namespace ls$(NS_NUM)
+
+local-deploy-cleanup: deploy-cleanup
+
+###################################
+# Solution 1 & Solution 2 targets #
+###################################
+
+
+patch-coredns: check-ls-num
+	# Patch CoreDNS to forward requests to localstack
+	kubectl get -n kube-system configmaps coredns -o yaml | \
+		yq  '.data.Corefile = (.data.Corefile + "\nlocalstack$(NS_NUM):53 {\n    errors\n    cache 5\n    forward . 10.100.$(NS_NUM).53\n}")' | \
+		yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' | \
+		kubectl apply -f -;
+	
+	# Restart CoreDNS
+	kubectl rollout restart -n kube-system deployment/coredns;
+
+	# Add service to expose Localstack DNS
+	envsubst < manifests/coredns/service.template.yaml | kubectl apply -f -;
+
+deploy-setup: check-ls-num
+	export NODE_PORT=$(shell expr 31566 + ${NS_NUM})
 	envsubst < charts/localstack/values.template.yaml > charts/localstack/values.yaml;
 	envsubst < manifests/devxpod/deployment-template.yaml > manifests/devxpod/deployment-gen.yaml;
 	helm repo add localstack-charts https://localstack.github.io/helm-charts;
+	helm repo update localstack-charts;
 
-aws-deploy-ls: aws-deploy-setup
+deploy-localstack: check-ls-num
+	$(MAKE) deploy-setup
 	helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
-	#helm install localstack ../helm-charts/charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
 	kubectl apply -f manifests/devxpod/deployment-gen.yaml;
 
-# Set target specific variable DEV_POD_NAME to be used in that target
-aws-ssh-devpod: DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}")
-aws-ssh-devpod:
-	kubectl exec -it $(DEV_POD_NAME) -n ls$(NS_NUM) -- /bin/bash;
+exec-devpod-interactive: check-ls-num
+	DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}"); \
+	kubectl exec -it $$DEV_POD_NAME -n ls$(NS_NUM) -- /bin/bash;
 
-# Set target specific variable DEV_POD_NAME to be used in that target
-aws-ssh-lspod: LS_POD_NAME=$(shell kubectl get pods -l app.kubernetes.io/name=localstack -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}")
-aws-ssh-lspod:
-	kubectl exec -it $(LS_POD_NAME) -n ls$(NS_NUM) -- /bin/bash;
+exec-devpod-noninteractive: check-ls-num check-cmd
+	DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}"); \
+	kubectl exec $$DEV_POD_NAME -n ls$(NS_NUM) -- /bin/bash -c "$(CMD)";
 
-
-aws-cleanup-ns: cleanup-ns
-	eksctl delete fargateprofile \
-		--cluster $(CLUSTER_NAME) \
-		--name ls-fargate-profile$(NS_NUM)
-
-aws-cleanup-cluster:
-	eksctl delete cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION)
-
-eksany-create-cluster:
-	eksctl anywhere create cluster -f ./clusters/eks-anywhere/$(CLUSTER_NAME).yaml
-
-eksany-setup-coredns: gen-coredns
-	kubectl apply -f coredns-tmp.yaml;
-	kubectl rollout restart -n kube-system deployment/coredns;
-
-eksany-setup-ns: gen-coredns
-	kubectl create namespace ls$(NS_NUM);
-	kubectl apply -f coredns-tmp.yaml;
-	kubectl rollout restart -n kube-system deployment/coredns;
-	envsubst < manifests/coredns/ls-dns-template.yaml > manifests/coredns/ls-dns-gen.yaml
-	kubectl apply -f manifests/coredns/ls-dns-gen.yaml;
-
-eksany-deploy-ls: aws-deploy-ls
-
-eksany-ssh-devpod: aws-ssh-devpod
-eksany-ssh-lspod: aws-ssh-lspod
-
-eksany-cleanup-cluster:
-	eksctl anywhere delete cluster $(CLUSTER_NAME) -f ./clusters/eks-anywhere/$(CLUSTER_NAME).yaml
-
-eksany-cleanup-ns: cleanup-ns
-
-eksany-lslogs: LS_POD_NAME=$(shell kubectl get pods -l app.kubernetes.io/name=localstack -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}")
-eksany-lslogs:
-	kubectl logs $(LS_POD_NAME) -n ls$(NS_NUM) -f
+deploy-cleanup: check-ls-num
+	helm uninstall localstack --namespace ls$(NS_NUM);
+	kubectl delete namespace ls$(NS_NUM);

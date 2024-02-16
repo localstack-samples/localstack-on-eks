@@ -1,21 +1,20 @@
-# 🌐 LocalStack on EKS in AWS and EKS Anywhere on your Laptop
+# 🌐 Overview
 
 This blueprint has two solutions:
 
 1. Deploy LocalStack to AWS EKS with Fargate. 
 2. Deploy LocalStack on an engineer's laptop on EKS Anywhere with Docker.
 
-**Solution-1** provides a hybrid integration environment where teams can run component/integration/system tests.
+[**Solution-1**](#solution-1) provides a hybrid integration environment where teams can run component/integration/system tests.
 The solution is managed in AWS to allow for easy management of the entire platform across multiple AWS accounts.
 
-**Solution-2** is identical to Solution-1 but it runs on engineers laptops with EKS Anywhere. 
+[**Solution-2**](#solution-2) is identical to Solution-1 but it runs on engineers laptops with EKS Anywhere. 
 
 The two solutions having nearly identical tooling allows enterprise teams to create a manageable
 solution testing platform.
 
 ### LocalStack on AWS EKS Fargate
 Multiple namespaces isolate testing of different solutions.
-
 ![LSonEKS](./docs/design-ls-on-aws-eks.drawio.png "LSonEKS")
 
 ### LocalStack on Engineer's Laptop with EKS Anywhere
@@ -43,85 +42,50 @@ This solution has the EKS cluster deployed on AWS.
 
 #### Prerequisites for Solution-1 🧰
 
-- An AWS Account
 - [install Helm](https://helm.sh/docs/intro/install/)
 - [install kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [install eksctl](https://eksctl.io/installation/)
-
-#### Get credentials to your AWS account
-However you get and set your credentials, set them.
-
-Put these contents in a file named `.env-local`
-```shell
-export LOCALSTACK_AUTH_TOKEN=<your LocalStack auth token>
-```
+- AWS credentials for `eksctl`.
+- `export LOCALSTACK_AUTH_TOKEN=<your LocalStack auth token>` added to `.env-local`.
 
 #### Solution-1 Steps
 
-**Setup Cluster and CoreDNS**
-This blueprint builds namespaces in the format of `ls<NS_NUM>`. So, we're going
-to choose a Namespace number for the following targets. 
+Let's create the AWS cluster. This blueprint builds namespaces in the format of `ls<NS_NUM>`. So, we're going
+to choose a namespace number for the following targets.
+
 ```shell
-make aws-setup-cluster NS_NUM=0
+make aws-setup-cluster
+
+# Create the namespace and the Fargate profile.
+make aws-bootstrap NS_NUM=0
+# Apply CoreDNS patch so that CoreDNS points to the Localstack service.
+make patch-coredns NS_NUM=0
+
+# Generate manifests and apply Localstack/DevPod deployments.
+make deploy-setup NS_NUM=0
+make deploy-localstack NS_NUM=0
+
+# Exec into dev environment
+make exec-devpod-interactive NS_NUM=0
 ```
 
-**Create Namespaces and Fargate Profiles**
-```shell
-make aws-setup-ns NS_NUM=0
-```
+Once inside the DevPod environment, let's clone our Localstack sample project:
 
-**Deploy LocalStack and Dev Pod Namespace ls0**
-```shell
-make  aws-deploy-ls NS_NUM=0
-```
-
-**Open Shell to DevPod**
-```shell
-make aws-ssh-devpod NS_NUM=0
-```
-
-**Clone solution repo and test**
 ```shell
 git clone https://github.com/localstack-samples/lambda-ddb.git
-```
-
-Get into the repo dir.
-
-```shell
 cd lambda-ddb
-```
 
-Bootstrap the solution. This is a solution built with AWS CDK.
-
-```shell
 make integ-awscdk-bootstrap
-```
-
-Deploy the AWS CDK solution.
-
-```shell
 make integ-awscdk-deploy
-```
-
-Test the deploy AWS CDK solution.
-
-```shell
 make integ-awscdk-test
 ```
 
-Restart LocalStack inside the running Pod. Now you can deploy again and retest.
+After the test passes, let's cleanup the EKS cluster:
 
 ```shell
-make reset-ls
-```
-
-**Cleanup EKS Cluster**
-make aws-cleanup-ns NS_NUM=<your namespace number>
-```shell
-make aws-cleanup-ns NS_NUM=0
+make aws-deploy-cleanup NS_NUM=0
 make aws-cleanup-cluster
 ```
-
 
 ### Solution-2
 
@@ -129,98 +93,104 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 
 #### Prerequisites for Solution-2 🧰
 
-- A laptop
+- Locally-accessible machine.
 - [install Helm](https://helm.sh/docs/intro/install/)
 - [install kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [install eksctl](https://eksctl.io/installation/)
 - [install eksanywhere plugin](https://anywhere.eks.amazonaws.com/docs/getting-started/install/)
 
-#### Create EKS anywhere cluster
+#### Solution-2 Steps
 
-Creating the cluster takes a couple minutes. Select a K8S Namespace number and supply it as an argument.
-```shell
-make eksany-create-cluster NS_NUM=0
-```
-
-![EKSAClusterDeploy](./docs/eksa-deploy-cluster.png "EKSAClusterDeploy")
-
-Create Namespace and setup Coredns
-```shell
-make eksany-setup-ns NS_NUM=0
-```
-
-#### Deploy LocalStack and DevPod
+Let's create the AWS cluster using EKS Anywhere locally. This blueprint builds namespaces in the format of `ls<NS_NUM>`. So, we're going to choose a namespace number for the following targets.
 
 ```shell
-make eksany-deploy-ls NS_NUM=0
+make local-setup-cluster
+
+# Create the namespace.
+make local-bootstrap NS_NUM=0
+# Apply CoreDNS patch so that CoreDNS points to the Localstack service.
+make patch-coredns NS_NUM=0
+
+# Generate manifests and apply Localstack/DevPod deployments.
+make deploy-setup NS_NUM=0
+make deploy-localstack NS_NUM=0
+
+# Exec into dev environment
+make exec-devpod-interactive NS_NUM=0
 ```
 
-#### Run Test
-Get a shell on the DevPod
-```shell
-make eksany-ssh-devpod NS_NUM=0
-```
+Once inside the DevPod environment, let's clone our Localstack sample project:
 
-**Clone solution repo and test**
 ```shell
 git clone https://github.com/localstack-samples/lambda-ddb.git
-```
-
-Get into the repo dir.
-
-```shell
 cd lambda-ddb
-```
 
-Bootstrap the solution. This is a solution built with AWS CDK.
-
-```shell
 make integ-awscdk-bootstrap
-```
-
-Deploy the AWS CDK solution.
-
-```shell
 make integ-awscdk-deploy
-```
-
-Test the deploy AWS CDK solution.
-
-```shell
 make integ-awscdk-test
 ```
 
-#### Setup Second Namespace
-To setup a second namespace and test in it, simply do this. We'll use namespace number 2.
+After the test passes, let's cleanup the EKS cluster:
+
+```shell
+make local-deploy-cleanup NS_NUM=0
+make local-cleanup-cluster
+```
+
+##### A 2nd deployment
+
+To setup a second namespace and test in it, simply do this.
+We'll use namespace number 1 (we've already used namespace number 0).
 The cluster already exists so we'll just add another namespace to it,
 deploy LocalStack and the DevPod, login to the DevPod, and test a repo.
+
 ```shell
-make eksany-setup-ns NS_NUM=2
-make eksany-deploy-ls NS_NUM=2
-make eksany-ssh-devpod NS_NUM=2
+make local-bootstrap NS_NUM=1
+make patch-coredns NS_NUM=1
+make deploy-setup NS_NUM=1
+make deploy-localstack NS_NUM=1
+make exec-devpod-interactive NS_NUM=1
+
 git clone https://github.com/localstack-samples/lambda-ddb.git
 cd lambda-ddb
 make integ-awscdk-bootstrap
 make integ-awscdk-deploy
 make integ-awscdk-test
 ```
+
 **Cleanup Namespace 2**
+
 ```shell
-make eksany-cleanup-ns NS_NUM=2
+make deploy-cleanup NS_NUM=1
 ```
 
-### Misc Commands
-**Edit Coredns config directly**
-```shell
-kubectl edit -n kube-system configmaps coredns
-```
+### Multiple Namespaces
 
-**List resources in namespace ls0**
-```shell
-kubectl get all -n ls0
-```
+To deploy multiple Localstack instances with their own dev environment, you can do something like this:
 
-**Get LocalStack container logs**
 ```shell
-make eksany-lslogs NS_NUM=0
+
+function create_environment () {
+    local namespace_idx="$1"
+    make local-bootstrap NS_NUM=$namespace_idx
+    make patch-coredns NS_NUM=$namespace_idx
+    make deploy-setup NS_NUM=$namespace_idx
+    make deploy-localstack NS_NUM=$namespace_idx
+    make exec-devpod-interactive NS_NUM=$namespace_idx
+}
+
+function check_localstack () {
+    local namespace_idx="$1"
+    make exec-devpod-noninteractive NS_NUM=$namespace_idx CMD="curl -i localstack$namespace_idx:4566"
+}
+
+# Create a 100 environments
+for i in `seq 0 100`; do
+    create_environment "$i"
+done
+
+# Execute the `ls -la` command on all 1000
+for i in `seq 0 100`; do
+    check_localstack "$i"
+done
 ```
