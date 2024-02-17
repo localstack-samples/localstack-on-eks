@@ -85,7 +85,7 @@ jobs:
         export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
 
         # Set up EKS anywhere.
-        sudo make local-setup-cluster
+        sudo make local-create-cluster
         sudo chmod 755 $KUBECONFIG
 
         # Apply required patches.
@@ -128,4 +128,4 @@ jobs:
         source .env
         export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
         make deploy-cleanup NS_NUM=$NS_NUM
-        sudo make local-cleanup-cluster NS_NUM=$NS_NUM
+        sudo make local-delete-cluster NS_NUM=$NS_NUM
