@@ -89,7 +89,7 @@ jobs:
         sudo chmod 755 $KUBECONFIG
 
         # Apply required patches.
-        make local-bootstrap NS_NUM=$NS_NUM
+        make create-namespace NS_NUM=$NS_NUM
         make patch-coredns NS_NUM=$NS_NUM
 
     - name: Deploy Localstack
