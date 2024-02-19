@@ -46,12 +46,14 @@ aws-delete-cluster:
 aws-create-fargate-profile: check-ls-num create-namespace
 	eksctl create fargateprofile \
 		--cluster $(CLUSTER_NAME) \
+		--region $(CLUSTER_REGION) \
 		--name ls-fargate-profile$(NS_NUM) \
 		--namespace ls$(NS_NUM);
 
 aws-delete-fargate-profile: check-ls-num delete-namespace
 	eksctl delete fargateprofile \
 		--cluster $(CLUSTER_NAME) \
+		--region $(CLUSTER_REGION) \
 		--name ls-fargate-profile$(NS_NUM);
 
 ######################
