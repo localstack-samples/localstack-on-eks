@@ -36,9 +36,9 @@ endif
 aws-create-cluster:
 	envsubst < clusters/aws/$(CLUSTER_NAME).template.yaml > clusters/aws/$(CLUSTER_NAME).yaml;
 	eksctl create cluster --config-file clusters/aws/$(CLUSTER_NAME).yaml;
-	mkdir -p ~/.kube
-	mv ~/.kube/config ~/.kube/config.bak || true
-	cp "$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig" ~/.kube/config
+	mkdir -p ~/.kube;
+	mv ~/.kube/config ~/.kube/config.bak || true;
+	cp "$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig" ~/.kube/config;
 
 
 aws-delete-cluster:
