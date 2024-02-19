@@ -34,7 +34,8 @@ endif
 ######################
 
 aws-create-cluster:
-	eksctl create cluster --config-file clusters/aws/$(CLUSTER_NAME).yaml --name $(CLUSTER_NAME) --region $(CLUSTER_REGION)
+	envsubst < clusters/aws/$(CLUSTER_NAME).template.yaml > clusters/aws/$(CLUSTER_NAME).yaml;
+	eksctl create cluster --config-file clusters/aws/$(CLUSTER_NAME).yaml;
 	mkdir -p ~/.kube
 	mv ~/.kube/config ~/.kube/config.bak || true
 	cp "$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig" ~/.kube/config
