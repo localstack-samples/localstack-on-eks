@@ -61,6 +61,7 @@ aws-delete-fargate-profile: check-ls-num delete-namespace
 ######################
 
 local-create-cluster:
+	envsubst < clusters/eks-anywhere/$(CLUSTER_NAME).template.yaml > clusters/eks-anywhere/$(CLUSTER_NAME).yaml;
 	eksctl anywhere create cluster -f clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6;
 	mkdir -p ~/.kube
 	mv ~/.kube/config ~/.kube/config.bak || true
