@@ -126,6 +126,8 @@ make integ-awscdk-test
 After the test passes, let's delete the EKS cluster from AWS:
 
 ```shell
+make deploy-cleanup NS_NUM=$FARGATE_WORKLOAD
+make deploy-cleanup NS_NUM=$EC2_WORKLOAD
 make aws-delete-cluster
 ```
 
@@ -175,6 +177,7 @@ make integ-awscdk-test
 After the test passes, let's delete the EKS cluster from the local machine:
 
 ```shell
+make deploy-cleanup NS_NUM=0
 make local-delete-cluster
 ```
 

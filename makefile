@@ -117,3 +117,11 @@ exec-devpod-noninteractive: check-ls-num check-cmd
 deploy-cleanup: check-ls-num
 	helm uninstall localstack --namespace ls$(NS_NUM);
 	kubectl delete namespace ls$(NS_NUM);
+	kubectl get -n kube-system configmaps coredns -o json | \
+		jq '.data.Corefile |= gsub("(?s)localstack${NS_NUM}:53[\\s\\S]*?}"; "")' | \
+		yq eval -p=json - | \
+		yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
+		> coredns-tmp.yaml;
+	kubectl apply -f coredns-tmp.yaml;
+	kubectl rollout restart -n kube-system deployment/coredns;
+	rm -f coredns-tmp.yaml;
