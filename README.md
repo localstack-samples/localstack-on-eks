@@ -6,7 +6,7 @@ This blueprint has two solutions:
 2. Deploy LocalStack on an engineer's laptop on EKS Anywhere with Docker.
 
 [**Solution-1**](#solution-1) provides a hybrid integration environment where teams can run component/integration/system tests.
-The solution is managed in AWS to allow for easy management of the entire platform across multiple AWS accounts. This is further subdivided into two categories: workloads that run with Fargate and workloads that run on EC2.
+The solution is managed in AWS to allow for easy management of the entire platform across multiple AWS accounts. This is further subdivided into two categories: workloads that run on Fargate backend and workloads that run on EC2 backend.
 
 [**Solution-2**](#solution-2) is identical to Solution-1 but it runs on engineers laptops with EKS Anywhere. 
 
