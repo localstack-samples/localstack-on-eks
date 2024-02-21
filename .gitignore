@@ -6,3 +6,5 @@ eksa-cli-logs
 eks-cluster
 eks-values.yaml
 manifests/devxpod/deployment-gen.yaml
+clusters/eks-anywhere/eks-cluster.yaml
+clusters/aws/eks-cluster.yaml

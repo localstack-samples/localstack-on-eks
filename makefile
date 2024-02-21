@@ -4,10 +4,11 @@ SHELL := /bin/bash
 -include .env-local
 
 .PHONY: \
-    aws-setup-cluster \
-    aws-cleanup-cluster \
-    local-setup-cluster \
-    local-cleanup-cluster \
+    aws-create-cluster \
+    aws-delete-cluster \
+    local-create-cluster \
+    local-delete-cluster \
+	create-namespace \
     patch-coredns \
 	deploy-setup \
 	deploy-localstack \
@@ -32,56 +33,53 @@ endif
 # Solution 1 targets #
 ######################
 
-aws-setup-cluster:
-	eksctl create cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION) --version 1.28 --fargate
-	mkdir -p ~/.kube
-	mv ~/.kube/config ~/.kube/config.bak || true
-	cp "$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig" ~/.kube/config
+aws-create-cluster:
+	envsubst < clusters/aws/$(CLUSTER_NAME).template.yaml > clusters/aws/$(CLUSTER_NAME).yaml;
+	eksctl create cluster --config-file clusters/aws/$(CLUSTER_NAME).yaml;
+	mkdir -p ~/.kube;
+	eksctl utils write-kubeconfig --cluster $(CLUSTER_NAME) --region $(CLUSTER_REGION);
 
-
-aws-cleanup-cluster:
-	eksctl delete fargateprofile \
-		--cluster $(CLUSTER_NAME) \
-		--name ls-fargate-profile$(NS_NUM);
+aws-delete-cluster:
 	eksctl delete cluster --name $(CLUSTER_NAME) --region $(CLUSTER_REGION);
 	rm -r $(CLUSTER_NAME) eksa-cli-logs;
 
-aws-bootstrap:
-	kubectl create namespace ls$(NS_NUM);
+aws-create-fargate-profile: check-ls-num create-namespace
 	eksctl create fargateprofile \
 		--cluster $(CLUSTER_NAME) \
+		--region $(CLUSTER_REGION) \
 		--name ls-fargate-profile$(NS_NUM) \
 		--namespace ls$(NS_NUM);
 
-aws-deploy-cleanup:
-	$(MAKE) deploy-cleanup
+aws-delete-fargate-profile: check-ls-num delete-namespace
 	eksctl delete fargateprofile \
 		--cluster $(CLUSTER_NAME) \
+		--region $(CLUSTER_REGION) \
 		--name ls-fargate-profile$(NS_NUM);
 
 ######################
 # Solution 2 targets #
 ######################
 
-local-setup-cluster:
+local-create-cluster:
+	envsubst < clusters/eks-anywhere/$(CLUSTER_NAME).template.yaml > clusters/eks-anywhere/$(CLUSTER_NAME).yaml;
 	eksctl anywhere create cluster -f clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6;
 	mkdir -p ~/.kube
 	mv ~/.kube/config ~/.kube/config.bak || true
 	cp "$(shell pwd)/$(CLUSTER_NAME)/$(CLUSTER_NAME)-eks-a-cluster.kubeconfig" ~/.kube/config
 
-local-cleanup-cluster:
+local-delete-cluster:
 	eksctl anywhere delete cluster -f clusters/eks-anywhere/$(CLUSTER_NAME).yaml -v 6;
 	rm -r $(CLUSTER_NAME) eksa-cli-logs;
-
-local-bootstrap: check-ls-num
-	kubectl create namespace ls$(NS_NUM)
-
-local-deploy-cleanup: deploy-cleanup
 
 ###################################
 # Solution 1 & Solution 2 targets #
 ###################################
 
+create-namespace: check-ls-num
+	kubectl create namespace ls$(NS_NUM) --dry-run=client -o yaml | kubectl apply -f -;
+
+delete-namespace: check-ls-num
+	kubectl delete namespace ls$(NS_NUM)  --ignore-not-found=true;
 
 patch-coredns: check-ls-num
 	# Patch CoreDNS to forward requests to localstack
@@ -119,3 +117,11 @@ exec-devpod-noninteractive: check-ls-num check-cmd
 deploy-cleanup: check-ls-num
 	helm uninstall localstack --namespace ls$(NS_NUM);
 	kubectl delete namespace ls$(NS_NUM);
+	kubectl get -n kube-system configmaps coredns -o json | \
+		jq '.data.Corefile |= gsub("(?s)localstack${NS_NUM}:53[\\s\\S]*?}"; "")' | \
+		yq eval -p=json - | \
+		yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
+		> coredns-tmp.yaml;
+	kubectl apply -f coredns-tmp.yaml;
+	kubectl rollout restart -n kube-system deployment/coredns;
+	rm -f coredns-tmp.yaml;

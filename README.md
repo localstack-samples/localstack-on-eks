@@ -6,7 +6,7 @@ This blueprint has two solutions:
 2. Deploy LocalStack on an engineer's laptop on EKS Anywhere with Docker.
 
 [**Solution-1**](#solution-1) provides a hybrid integration environment where teams can run component/integration/system tests.
-The solution is managed in AWS to allow for easy management of the entire platform across multiple AWS accounts.
+The solution is managed in AWS to allow for easy management of the entire platform across multiple AWS accounts. This is further subdivided into two categories: workloads that run on Fargate backend and workloads that run on EC2 backend.
 
 [**Solution-2**](#solution-2) is identical to Solution-1 but it runs on engineers laptops with EKS Anywhere. 
 
@@ -14,7 +14,9 @@ The two solutions having nearly identical tooling allows enterprise teams to cre
 solution testing platform.
 
 ### LocalStack on AWS EKS Fargate
+
 Multiple namespaces isolate testing of different solutions.
+
 ![LSonEKS](./docs/design-ls-on-aws-eks.drawio.png "LSonEKS")
 
 ### LocalStack on Engineer's Laptop with EKS Anywhere
@@ -54,19 +56,38 @@ Let's create the AWS cluster. This blueprint builds namespaces in the format of 
 to choose a namespace number for the following targets.
 
 ```shell
-make aws-setup-cluster
+make aws-create-cluster
+```
 
+Let's create a namespace `ls0` of whose resources are deployed with Fargate:
+
+```shell
+export FARGATE_WORKLOAD=0
 # Create the namespace and the Fargate profile.
-make aws-bootstrap NS_NUM=0
+make aws-create-fargate-profile NS_NUM=$FARGATE_WORKLOAD
 # Apply CoreDNS patch so that CoreDNS points to the Localstack service.
-make patch-coredns NS_NUM=0
+make patch-coredns NS_NUM=$FARGATE_WORKLOAD
+```
 
+Now let's create a namespace `ls1` of whose resources are deployed on EC2 nodes:
+
+```shell
+export EC2_WORKLOAD=1
+# Create the namespace for the workloads on EC2.
+make create-namespace NS_NUM=$EC2_WORKLOAD
+# Apply CoreDNS patch so that CoreDNS points to the Localstack service.
+make patch-coredns NS_NUM=$EC2_WORKLOAD
+```
+
+Then let's deploy Localstack on the namespace that runs its workloads on Fargate:
+
+```shell
 # Generate manifests and apply Localstack/DevPod deployments.
-make deploy-setup NS_NUM=0
-make deploy-localstack NS_NUM=0
+make deploy-setup NS_NUM=$FARGATE_WORKLOAD
+make deploy-localstack NS_NUM=$FARGATE_WORKLOAD
 
 # Exec into dev environment
-make exec-devpod-interactive NS_NUM=0
+make exec-devpod-interactive NS_NUM=$FARGATE_WORKLOAD
 ```
 
 Once inside the DevPod environment, let's clone our Localstack sample project:
@@ -80,11 +101,34 @@ make integ-awscdk-deploy
 make integ-awscdk-test
 ```
 
-After the test passes, let's cleanup the EKS cluster:
+Now, let's deploy Localstack on the namespace that runs its workloads on EC2 nodes:
 
 ```shell
-make aws-deploy-cleanup NS_NUM=0
-make aws-cleanup-cluster
+# Generate manifests and apply Localstack/DevPod deployments.
+make deploy-setup NS_NUM=$EC2_WORKLOAD
+make deploy-localstack NS_NUM=$EC2_WORKLOAD
+
+# Exec into dev environment
+make exec-devpod-interactive NS_NUM=$EC2_WORKLOAD
+```
+
+And like before, once inside the DevPod environment, let's clone our Localstack sample project:
+
+```shell
+git clone https://github.com/localstack-samples/lambda-ddb.git
+cd lambda-ddb
+
+make integ-awscdk-bootstrap
+make integ-awscdk-deploy
+make integ-awscdk-test
+```
+
+After the test passes, let's delete the EKS cluster from AWS:
+
+```shell
+make deploy-cleanup NS_NUM=$FARGATE_WORKLOAD
+make deploy-cleanup NS_NUM=$EC2_WORKLOAD
+make aws-delete-cluster
 ```
 
 ### Solution-2
@@ -104,10 +148,10 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 Let's create the AWS cluster using EKS Anywhere locally. This blueprint builds namespaces in the format of `ls<NS_NUM>`. So, we're going to choose a namespace number for the following targets.
 
 ```shell
-make local-setup-cluster
+make local-create-cluster
 
 # Create the namespace.
-make local-bootstrap NS_NUM=0
+make create-namespace NS_NUM=0
 # Apply CoreDNS patch so that CoreDNS points to the Localstack service.
 make patch-coredns NS_NUM=0
 
@@ -130,38 +174,11 @@ make integ-awscdk-deploy
 make integ-awscdk-test
 ```
 
-After the test passes, let's cleanup the EKS cluster:
+After the test passes, let's delete the EKS cluster from the local machine:
 
 ```shell
-make local-deploy-cleanup NS_NUM=0
-make local-cleanup-cluster
-```
-
-##### A 2nd deployment
-
-To setup a second namespace and test in it, simply do this.
-We'll use namespace number 1 (we've already used namespace number 0).
-The cluster already exists so we'll just add another namespace to it,
-deploy LocalStack and the DevPod, login to the DevPod, and test a repo.
-
-```shell
-make local-bootstrap NS_NUM=1
-make patch-coredns NS_NUM=1
-make deploy-setup NS_NUM=1
-make deploy-localstack NS_NUM=1
-make exec-devpod-interactive NS_NUM=1
-
-git clone https://github.com/localstack-samples/lambda-ddb.git
-cd lambda-ddb
-make integ-awscdk-bootstrap
-make integ-awscdk-deploy
-make integ-awscdk-test
-```
-
-**Cleanup Namespace 2**
-
-```shell
-make deploy-cleanup NS_NUM=1
+make deploy-cleanup NS_NUM=0
+make local-delete-cluster
 ```
 
 ### Multiple Namespaces
@@ -172,7 +189,7 @@ To deploy multiple Localstack instances with their own dev environment, you can 
 
 function create_environment () {
     local namespace_idx="$1"
-    make local-bootstrap NS_NUM=$namespace_idx
+    make create-namespace NS_NUM=$namespace_idx
     make patch-coredns NS_NUM=$namespace_idx
     make deploy-setup NS_NUM=$namespace_idx
     make deploy-localstack NS_NUM=$namespace_idx

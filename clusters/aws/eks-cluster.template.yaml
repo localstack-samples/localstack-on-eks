@@ -1,0 +1,35 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: ${CLUSTER_NAME}
+  region: ${CLUSTER_REGION}
+  version: "1.28"
+
+managedNodeGroups:
+  - name: ng-0-workers
+
+    # Default labels and tags
+    labels:
+      role: workers
+      placement: ec2
+    tags:
+      nodegroup-role: worker
+
+    # Arm-based instances
+    # Initialize the NG with 1 instance
+    instanceType: c7a.xlarge
+    minSize: 1
+    maxSize: 1
+    desiredCapacity: 1
+
+    # Use speedy gp3 storage
+    volumeSize: 40
+    volumeType: gp3
+    volumeIOPS: 3000
+    volumeThroughput: 125
+
+    privateNetworking: true
+
+    # Propagate tags from the ASG to the EC2 instances
+    propagateASGTags: true

@@ -1,7 +1,7 @@
 apiVersion: anywhere.eks.amazonaws.com/v1alpha1
 kind: Cluster
 metadata:
-  name: eks-cluster
+  name: ${CLUSTER_NAME}
 spec:
   clusterNetwork:
     cniConfig:
@@ -16,12 +16,12 @@ spec:
     count: 1
   datacenterRef:
     kind: DockerDatacenterConfig
-    name: eks-cluster
+    name: ${CLUSTER_NAME}
   externalEtcdConfiguration:
     count: 1
   kubernetesVersion: "1.28"
   managementCluster:
-    name: eks-cluster
+    name: ${CLUSTER_NAME}
   workerNodeGroupConfigurations:
   - count: 1
     name: md-0
@@ -30,7 +30,7 @@ spec:
 apiVersion: anywhere.eks.amazonaws.com/v1alpha1
 kind: DockerDatacenterConfig
 metadata:
-  name: eks-cluster
+  name: ${CLUSTER_NAME}
 spec: {}
 
 ---
