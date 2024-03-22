@@ -25,6 +25,12 @@ jobs:
       uses: docker/setup-buildx-action@v1
 
     - name: Install Dependencies
+      env:
+        EKSCTL_VERSION: v0.174.0
+        EKSCTL_ANYWHERE_VERSION: v0.19.1
+        AWS_IAM_AUTHENTICATOR_VERSION: v0.6.14
+        KUBECTL_VERSION: v1.29.1
+        YQ_VERSION: v4.40.7
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -43,35 +49,30 @@ jobs:
         fi
 
         # Install yq
-        sudo wget -O /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$ARCH
-        sudo chmod a+x /usr/local/bin/yq
+        sudo wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -O /usr/bin/yq && \
+        sudo chmod +x /usr/bin/yq
+
 
         # Install eksctl.
         PLATFORM=$(uname -s)_$ARCH
-        curl -sLO "https://github.com/eksctl-io/eksctl/releases/download/v0.167.0/eksctl_$PLATFORM.tar.gz"
-        curl -sL "https://github.com/eksctl-io/eksctl/releases/download/v0.167.0/eksctl_checksums.txt" | grep $PLATFORM | sha256sum --check
+        curl -sLO "https://github.com/eksctl-io/eksctl/releases/download/${EKSCTL_VERSION}/eksctl_$PLATFORM.tar.gz"
+        curl -sL "https://github.com/eksctl-io/eksctl/releases/download/${EKSCTL_VERSION}/eksctl_checksums.txt" | grep $PLATFORM | sha256sum --check
         tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
         sudo mv /tmp/eksctl /usr/local/bin
 
         # Install eksctl anywhere plugin.
-        RELEASE_VERSION=v0.18.3
-        EKS_ANYWHERE_TARBALL_URL=$(curl https://anywhere-assets.eks.amazonaws.com/releases/eks-a/manifest.yaml --silent --location | yq ".spec.releases[] | select(.version==\"$RELEASE_VERSION\").eksABinary.$(uname -s | tr A-Z a-z).uri")
+        EKS_ANYWHERE_TARBALL_URL=$(curl https://anywhere-assets.eks.amazonaws.com/releases/eks-a/manifest.yaml --silent --location | yq ".spec.releases[] | select(.version==\"$EKSCTL_ANYWHERE_VERSION\").eksABinary.$(uname -s | tr A-Z a-z).uri")
         curl $EKS_ANYWHERE_TARBALL_URL \
           --silent --location \
           | tar xz ./eksctl-anywhere
         sudo install -m 0755 ./eksctl-anywhere /usr/local/bin/eksctl-anywhere
 
         # Install aws-iam-authenticator.
-        curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.15.10/2020-02-22/bin/linux/$ARCH/aws-iam-authenticator
-        chmod +x ./aws-iam-authenticator
-        sudo mv aws-iam-authenticator /usr/local/bin
+        sudo wget https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/${AWS_IAM_AUTHENTICATOR_VERSION}/aws-iam-authenticator_${AWS_IAM_AUTHENTICATOR_VERSION}_linux_amd64 -O /usr/bin/aws-iam-authenticator && \
+        sudo chmod +x /usr/bin/aws-iam-authenticator
 
-        # Install helm.
-        curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
-        sudo apt-get install apt-transport-https --yes
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
-        sudo apt-get update
-        sudo apt-get install helm
+        curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" && \
+        sudo install -m 0755 kubectl /usr/local/bin/kubectl
 
     - name: Setup EKS anywhere
       env:
@@ -81,16 +82,14 @@ jobs:
         printenv
         unset LOCALSTACK_API_KEY
 
+        # Source all env vars.
         source .env
-        export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
 
-        # Set up EKS anywhere.
-        sudo make local-create-cluster
-        sudo chmod 755 $KUBECONFIG
-
-        # Apply required patches.
-        make create-namespace NS_NUM=$NS_NUM
-        make patch-coredns NS_NUM=$NS_NUM
+        eksctl anywhere create cluster -f ./clusters/eks-anywhere/${CLUSTER_NAME}.yaml -v 6;
+        mkdir -p ~/.kube
+        mv ~/.kube/config ~/.kube/config.bak || true
+        cp ${PWD}/${CLUSTER_NAME}/${CLUSTER_NAME}-eks-a-cluster.kubeconfig ~/.kube/config
+        kubectl get pods --all-namespaces
 
     - name: Deploy Localstack
       env:
@@ -99,7 +98,6 @@ jobs:
       run: |
         source .env
         export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
-        make deploy-setup NS_NUM=$NS_NUM
         make deploy-localstack NS_NUM=$NS_NUM
     
     - name: Copy Test Script
