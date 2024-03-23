@@ -95,6 +95,7 @@ jobs:
       run: |
         source .env
         export KUBECONFIG=$PWD/$CLUSTER_NAME/$CLUSTER_NAME-eks-a-cluster.kubeconfig
+        make create-namespace NS_NUM=$NS_NUM
         make deploy-localstack NS_NUM=$NS_NUM
     
     - name: Copy Test Script
