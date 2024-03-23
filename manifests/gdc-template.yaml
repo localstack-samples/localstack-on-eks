@@ -35,6 +35,6 @@ spec:
             cpu: "1"
         env:
           - name: NS_LOCALSTACK_HOST
-            value: localstack${NS_NUM}
+            value: localstack-env.ls${NS_NUM}
       nodeSelector:
         kubernetes.io/os: linux

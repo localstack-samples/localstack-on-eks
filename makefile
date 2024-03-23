@@ -9,8 +9,6 @@ SHELL := /bin/bash
     local-create-cluster \
     local-delete-cluster \
 	create-namespace \
-    patch-coredns \
-	deploy-setup \
 	deploy-localstack \
 	deploy-cleanup \
 	exec-devpod-interactive
@@ -18,6 +16,11 @@ SHELL := /bin/bash
 ######################
 # Helper targets     #
 ######################
+
+check-auth-token:
+ifndef LOCALSTACK_AUTH_TOKEN
+	$(error LOCALSTACK_AUTH_TOKEN is not set)
+endif
 
 check-ls-num:
 ifndef NS_NUM
@@ -75,36 +78,19 @@ local-delete-cluster:
 # Solution 1 & Solution 2 targets #
 ###################################
 
-create-namespace: check-ls-num
+create-namespace: check-ls-num check-auth-token
 	kubectl create namespace ls$(NS_NUM) --dry-run=client -o yaml | kubectl apply -f -;
+	kubectl create secret generic localstack-auth-token --from-literal=LOCALSTACK_AUTH_TOKEN=$(LOCALSTACK_AUTH_TOKEN) -n ls$(NS_NUM) --dry-run=client -o yaml | kubectl apply -f -;
 
 delete-namespace: check-ls-num
-	kubectl delete namespace ls$(NS_NUM)  --ignore-not-found=true;
-
-patch-coredns: check-ls-num
-	# Patch CoreDNS to forward requests to localstack
-	kubectl get -n kube-system configmaps coredns -o yaml | \
-		yq  '.data.Corefile = (.data.Corefile + "\nlocalstack$(NS_NUM):53 {\n    errors\n    cache 5\n    forward . 10.100.$(NS_NUM).53\n}")' | \
-		yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' | \
-		kubectl apply -f -;
-	
-	# Restart CoreDNS
-	kubectl rollout restart -n kube-system deployment/coredns;
-
-	# Add service to expose Localstack DNS
-	envsubst < manifests/coredns/service.template.yaml | kubectl apply -f -;
-
-deploy-setup: check-ls-num
-	export NODE_PORT=$(shell expr 31566 + ${NS_NUM})
-	envsubst < charts/localstack/values.template.yaml > charts/localstack/values.yaml;
-	envsubst < manifests/devxpod/deployment-template.yaml > manifests/devxpod/deployment-gen.yaml;
-	helm repo add localstack-charts https://localstack.github.io/helm-charts;
-	helm repo update localstack-charts;
+	kubectl delete namespace ls$(NS_NUM) --ignore-not-found=true;
 
 deploy-localstack: check-ls-num
-	$(MAKE) deploy-setup
-	helm install localstack localstack-charts/localstack -f charts/localstack/values.yaml --namespace ls$(NS_NUM);
-	kubectl apply -f manifests/devxpod/deployment-gen.yaml;
+	envsubst < manifests/gdc-template.yaml > manifests/gdc.yaml;
+	kubectl apply -f manifests/gdc.yaml;
+
+	envsubst < manifests/localstack-template.yaml > manifests/localstack.yaml;
+	kubectl apply -f manifests/localstack.yaml;
 
 exec-devpod-interactive: check-ls-num
 	DEV_POD_NAME=$(shell kubectl get pods -l app=devxpod -n ls$(NS_NUM) -o jsonpath="{.items[0].metadata.name}"); \
@@ -115,13 +101,4 @@ exec-devpod-noninteractive: check-ls-num check-cmd
 	kubectl exec $$DEV_POD_NAME -n ls$(NS_NUM) -- /bin/bash -c "$(CMD)";
 
 deploy-cleanup: check-ls-num
-	helm uninstall localstack --namespace ls$(NS_NUM);
 	kubectl delete namespace ls$(NS_NUM);
-	kubectl get -n kube-system configmaps coredns -o json | \
-		jq '.data.Corefile |= gsub("(?s)localstack${NS_NUM}:53[\\s\\S]*?}"; "")' | \
-		yq eval -p=json - | \
-		yq 'del(.metadata.annotations, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
-		> coredns-tmp.yaml;
-	kubectl apply -f coredns-tmp.yaml;
-	kubectl rollout restart -n kube-system deployment/coredns;
-	rm -f coredns-tmp.yaml;

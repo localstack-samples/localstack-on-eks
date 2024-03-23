@@ -18,9 +18,9 @@ managedNodeGroups:
 
     # Arm-based instances
     # Initialize the NG with 1 instance
-    instanceType: c7a.xlarge
-    minSize: 1
-    maxSize: 1
+    instanceType: r7g.medium
+    minSize: 0
+    maxSize: 2
     desiredCapacity: 1
 
     # Use speedy gp3 storage

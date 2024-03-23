@@ -49,6 +49,7 @@ This solution has the EKS cluster deployed on AWS.
 - [install eksctl](https://eksctl.io/installation/)
 - AWS credentials for `eksctl`.
 - `export LOCALSTACK_AUTH_TOKEN=<your LocalStack auth token>` added to `.env-local`.
+- [install localstack k8s operator](https://github.com/localstack/localstack-k8s-operator).
 
 #### Solution-1 Steps
 
@@ -65,8 +66,6 @@ Let's create a namespace `ls0` of whose resources are deployed with Fargate:
 export FARGATE_WORKLOAD=0
 # Create the namespace and the Fargate profile.
 make aws-create-fargate-profile NS_NUM=$FARGATE_WORKLOAD
-# Apply CoreDNS patch so that CoreDNS points to the Localstack service.
-make patch-coredns NS_NUM=$FARGATE_WORKLOAD
 ```
 
 Now let's create a namespace `ls1` of whose resources are deployed on EC2 nodes:
@@ -75,15 +74,12 @@ Now let's create a namespace `ls1` of whose resources are deployed on EC2 nodes:
 export EC2_WORKLOAD=1
 # Create the namespace for the workloads on EC2.
 make create-namespace NS_NUM=$EC2_WORKLOAD
-# Apply CoreDNS patch so that CoreDNS points to the Localstack service.
-make patch-coredns NS_NUM=$EC2_WORKLOAD
 ```
 
 Then let's deploy Localstack on the namespace that runs its workloads on Fargate:
 
 ```shell
 # Generate manifests and apply Localstack/DevPod deployments.
-make deploy-setup NS_NUM=$FARGATE_WORKLOAD
 make deploy-localstack NS_NUM=$FARGATE_WORKLOAD
 
 # Exec into dev environment
@@ -105,7 +101,6 @@ Now, let's deploy Localstack on the namespace that runs its workloads on EC2 nod
 
 ```shell
 # Generate manifests and apply Localstack/DevPod deployments.
-make deploy-setup NS_NUM=$EC2_WORKLOAD
 make deploy-localstack NS_NUM=$EC2_WORKLOAD
 
 # Exec into dev environment
@@ -142,6 +137,7 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 - [install kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [install eksctl](https://eksctl.io/installation/)
 - [install eksanywhere plugin](https://anywhere.eks.amazonaws.com/docs/getting-started/install/)
+- [install localstack k8s operator](https://github.com/localstack/localstack-k8s-operator).
 
 #### Solution-2 Steps
 
@@ -152,11 +148,8 @@ make local-create-cluster
 
 # Create the namespace.
 make create-namespace NS_NUM=0
-# Apply CoreDNS patch so that CoreDNS points to the Localstack service.
-make patch-coredns NS_NUM=0
 
 # Generate manifests and apply Localstack/DevPod deployments.
-make deploy-setup NS_NUM=0
 make deploy-localstack NS_NUM=0
 
 # Exec into dev environment
@@ -190,8 +183,6 @@ To deploy multiple Localstack instances with their own dev environment, you can 
 function create_environment () {
     local namespace_idx="$1"
     make create-namespace NS_NUM=$namespace_idx
-    make patch-coredns NS_NUM=$namespace_idx
-    make deploy-setup NS_NUM=$namespace_idx
     make deploy-localstack NS_NUM=$namespace_idx
     make exec-devpod-interactive NS_NUM=$namespace_idx
 }
