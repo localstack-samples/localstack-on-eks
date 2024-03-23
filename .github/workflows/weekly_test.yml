@@ -85,10 +85,7 @@ jobs:
         # Source all env vars.
         source .env
 
-        eksctl anywhere create cluster -f ./clusters/eks-anywhere/${CLUSTER_NAME}.yaml -v 6;
-        mkdir -p ~/.kube
-        mv ~/.kube/config ~/.kube/config.bak || true
-        cp ${PWD}/${CLUSTER_NAME}/${CLUSTER_NAME}-eks-a-cluster.kubeconfig ~/.kube/config
+        make local-create-cluster
         kubectl get pods --all-namespaces
 
     - name: Deploy Localstack
