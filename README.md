@@ -49,6 +49,7 @@ This solution has the EKS cluster deployed on AWS.
 - [install eksctl](https://eksctl.io/installation/)
 - AWS credentials for `eksctl`.
 - `export LOCALSTACK_AUTH_TOKEN=<your LocalStack auth token>` added to `.env-local`.
+- [install localstack k8s operator](https://github.com/localstack/localstack-k8s-operator).
 
 #### Solution-1 Steps
 
@@ -136,6 +137,7 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 - [install kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [install eksctl](https://eksctl.io/installation/)
 - [install eksanywhere plugin](https://anywhere.eks.amazonaws.com/docs/getting-started/install/)
+- [install localstack k8s operator](https://github.com/localstack/localstack-k8s-operator).
 
 #### Solution-2 Steps
 

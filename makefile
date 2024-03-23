@@ -17,6 +17,11 @@ SHELL := /bin/bash
 # Helper targets     #
 ######################
 
+check-auth-token:
+ifndef LOCALSTACK_AUTH_TOKEN
+	$(error LOCALSTACK_AUTH_TOKEN is not set)
+endif
+
 check-ls-num:
 ifndef NS_NUM
 	$(error NS_NUM is not set)
@@ -73,8 +78,9 @@ local-delete-cluster:
 # Solution 1 & Solution 2 targets #
 ###################################
 
-create-namespace: check-ls-num
+create-namespace: check-ls-num check-auth-token
 	kubectl create namespace ls$(NS_NUM) --dry-run=client -o yaml | kubectl apply -f -;
+	kubectl create secret generic localstack-auth-token --from-literal=LOCALSTACK_AUTH_TOKEN=$(LOCALSTACK_AUTH_TOKEN) -n ls$(NS_NUM) --dry-run=client -o yaml | kubectl apply -f -;
 
 delete-namespace: check-ls-num
 	kubectl delete namespace ls$(NS_NUM) --ignore-not-found=true;

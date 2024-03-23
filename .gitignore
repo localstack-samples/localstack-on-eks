@@ -8,3 +8,4 @@ eks-values.yaml
 manifests/gdc.yaml
 clusters/eks-anywhere/eks-cluster.yaml
 clusters/aws/eks-cluster.yaml
+manifests/localstack.yaml
