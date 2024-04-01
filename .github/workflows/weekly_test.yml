@@ -89,11 +89,15 @@ jobs:
         # Source all env vars.
         source .env
 
+        # Download CRDs.
+        aws s3 cp s3://localstack-releases/localstack-k8s-operator/localstack-k8s-operator-v0.1.1.tar .
+        tar -xvf localstack-k8s-operator-v0.1.1.tar
+
+        # Create EKS cluster.
         make local-create-cluster
         kubectl get pods --all-namespaces
 
-        aws s3 cp s3://localstack-releases/localstack-k8s-operator/localstack-k8s-operator-v0.1.1.tar .
-        tar -xvf localstack-k8s-operator-v0.1.1.tar
+        # Apply CRDs.
         kubectl apply -f localstack-k8s-operator-v0.1.1/release/
 
     - name: Deploy Localstack
