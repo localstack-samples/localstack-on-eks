@@ -15,6 +15,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    environment: CI
     timeout-minutes: 30
     steps:
 
@@ -35,7 +36,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y \
           run-one \
-          make
+          make \
+          unzip \
+          tar
 
         ARCH=$(uname -m)
         if [ "$ARCH" = "x86_64" ]; then
@@ -51,7 +54,12 @@ jobs:
         # Install yq
         sudo wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -O /usr/bin/yq && \
         sudo chmod +x /usr/bin/yq
-
+        
+        # Install aws-cli v2.
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+        rm -rf awscliv2.zip aws
 
         # Install eksctl.
         PLATFORM=$(uname -s)_$ARCH
@@ -77,6 +85,8 @@ jobs:
     - name: Setup EKS anywhere
       env:
         NS_NUM: "0"
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         # Unset stale org secret.
         printenv
@@ -87,6 +97,10 @@ jobs:
 
         make local-create-cluster
         kubectl get pods --all-namespaces
+
+        aws s3 cp s3://localstack-releases/localstack-k8s-operator/localstack-k8s-operator-v0.1.1.tar .
+        tar -xvf localstack-k8s-operator-v0.1.1.tar
+        kubectl apply -f localstack-k8s-operator-v0.1.1/release/
 
     - name: Deploy Localstack
       env:
