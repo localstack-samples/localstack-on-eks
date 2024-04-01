@@ -101,7 +101,7 @@ jobs:
         kubectl get pods --all-namespaces
 
         # Apply CRDs.
-        kubectl apply -f localstack-k8s-operator-v0.1.1/release/
+        kubectl apply -f /release/
 
     - name: Deploy Localstack
       env:
