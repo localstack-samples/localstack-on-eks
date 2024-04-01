@@ -55,12 +55,6 @@ jobs:
         sudo wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -O /usr/bin/yq && \
         sudo chmod +x /usr/bin/yq
         
-        # Install aws-cli v2.
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-        unzip awscliv2.zip
-        sudo ./aws/install
-        rm -rf awscliv2.zip aws
-
         # Install eksctl.
         PLATFORM=$(uname -s)_$ARCH
         curl -sLO "https://github.com/eksctl-io/eksctl/releases/download/${EKSCTL_VERSION}/eksctl_$PLATFORM.tar.gz"
