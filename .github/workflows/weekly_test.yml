@@ -90,7 +90,10 @@ jobs:
         source .env
 
         # Download CRDs.
-        aws s3 cp s3://localstack-releases/localstack-k8s-operator/localstack-k8s-operator-v0.1.1.tar .
+        aws configure set region eu-central-1 --profile assets
+        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID --profile assets
+        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY --profile assets
+        aws s3 cp s3://localstack-releases/localstack-k8s-operator/localstack-k8s-operator-v0.1.1.tar . --profile assets
         tar -xvf localstack-k8s-operator-v0.1.1.tar
 
         # Create EKS cluster.
