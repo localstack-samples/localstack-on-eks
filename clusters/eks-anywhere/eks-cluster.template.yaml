@@ -2,10 +2,11 @@ apiVersion: anywhere.eks.amazonaws.com/v1alpha1
 kind: Cluster
 metadata:
   name: ${CLUSTER_NAME}
+  namespace: default
 spec:
   clusterNetwork:
     cniConfig:
-      kindnetd: {}
+      cilium: {}
     pods:
       cidrBlocks:
       - 192.168.0.0/16
@@ -19,7 +20,7 @@ spec:
     name: ${CLUSTER_NAME}
   externalEtcdConfiguration:
     count: 1
-  kubernetesVersion: "1.28"
+  kubernetesVersion: "1.29"
   managementCluster:
     name: ${CLUSTER_NAME}
   workerNodeGroupConfigurations:
@@ -31,6 +32,7 @@ apiVersion: anywhere.eks.amazonaws.com/v1alpha1
 kind: DockerDatacenterConfig
 metadata:
   name: ${CLUSTER_NAME}
+  namespace: default
 spec: {}
 
 ---
