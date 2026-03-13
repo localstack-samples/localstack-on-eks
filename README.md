@@ -44,6 +44,7 @@ This solution has the EKS cluster deployed on AWS.
 
 #### Prerequisites for Solution-1 🧰
 
+- A valid [LocalStack for AWS license](https://localstack.cloud/pricing). Your license provides a [`LOCALSTACK_AUTH_TOKEN`](https://docs.localstack.cloud/getting-started/auth-token/) to activate LocalStack.
 - [install Helm](https://helm.sh/docs/intro/install/)
 - [install kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [install eksctl](https://eksctl.io/installation/)
@@ -132,6 +133,7 @@ This solution has the EKS cluster deployed on your local machine, using the EKS 
 
 #### Prerequisites for Solution-2 🧰
 
+- A valid [LocalStack for AWS license](https://localstack.cloud/pricing). Your license provides a [`LOCALSTACK_AUTH_TOKEN`](https://docs.localstack.cloud/getting-started/auth-token/) to activate LocalStack.
 - Locally-accessible machine.
 - [install Helm](https://helm.sh/docs/intro/install/)
 - [install kubectl](https://kubernetes.io/docs/tasks/tools/)
